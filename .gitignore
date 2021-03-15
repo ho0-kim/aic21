@@ -1,0 +1,14 @@
+.vscode
+DataLicenseAgreement_AICityChallenge_2021.pdf
+LICENSE
+README.md
+baseline
+baseline_hy.zip
+baseline_hy
+data
+extract_vdo_frms.sh
+log
+mmt
+train
+validation
+src/__pycache__
