@@ -4,7 +4,7 @@ import logging
 import re
 import types
 
-import bert as VidBertModel
+from bert import BertModel as VidBertModel
 
 import torch
 import torch.nn as nn
@@ -33,12 +33,16 @@ class CEModel(nn.Module):
         self.txt_bert = BertModel.from_pretrained(self.cfg["bert_pretrained_model"])
         self.lang_fc = torch.nn.Linear(768, self.cfg["embedding_size"])
 
+        self.vid_bert = VidBertModel(self.cfg["vid_bert_params"])
+
     def forward(self, input):
         print(type(input))
         print(len(input))
 
         print(input["nl"])
         print(input["frames"].shape)
+
+        # Text Embedding
 
         txt_embd_list = []
         for minibatch in input["nl"]:

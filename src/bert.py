@@ -108,22 +108,22 @@ class BertSelfAttention(nn.Module):
 
   def __init__(self, config):
     super(BertSelfAttention, self).__init__()
-    if config.hidden_size % config.num_attention_heads != 0:
+    if config["hidden_size"] % config["num_attention_heads"] != 0:
       raise ValueError(
           "The hidden size (%d) is not a multiple of the number of attention "
-          "heads (%d)" % (config.hidden_size, config.num_attention_heads))
+          "heads (%d)" % (config["hidden_size"], config["num_attention_heads"]))
     self.output_attentions = False
 
-    self.num_attention_heads = config.num_attention_heads
-    self.attention_head_size = int(config.hidden_size
-                                   / config.num_attention_heads)
+    self.num_attention_heads = config["num_attention_heads"]
+    self.attention_head_size = int(config["hidden_size"]
+                                   / config["num_attention_heads"])
     self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-    self.query = nn.Linear(config.hidden_size, self.all_head_size)
-    self.key = nn.Linear(config.hidden_size, self.all_head_size)
-    self.value = nn.Linear(config.hidden_size, self.all_head_size)
+    self.query = nn.Linear(config["hidden_size"], self.all_head_size)
+    self.key = nn.Linear(config["hidden_size"], self.all_head_size)
+    self.value = nn.Linear(config["hidden_size"], self.all_head_size)
 
-    self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
+    self.dropout = nn.Dropout(config["attention_probs_dropout_prob"])
 
   def transpose_for_scores(self, x):
     new_x_shape = x.size()[:-1] + (self.num_attention_heads,
@@ -175,10 +175,10 @@ class BertSelfOutput(nn.Module):
 
   def __init__(self, config):
     super(BertSelfOutput, self).__init__()
-    self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-    self.layer_norm = BertLayerNorm(config.hidden_size,
-                                    eps=config.layer_norm_eps)
-    self.dropout = nn.Dropout(config.hidden_dropout_prob)
+    self.dense = nn.Linear(config["hidden_size"], config["hidden_size"])
+    self.layer_norm = BertLayerNorm(config["hidden_size"],
+                                    eps=config["layer_norm_eps"])
+    self.dropout = nn.Dropout(config["hidden_dropout_prob"])
 
   def forward(self, hidden_states, input_tensor):
     hidden_states = self.dense(hidden_states)
@@ -208,8 +208,8 @@ class BertIntermediate(nn.Module):
 
   def __init__(self, config):
     super(BertIntermediate, self).__init__()
-    self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
-    self.intermediate_act_fn = ACT2FN[config.hidden_act]
+    self.dense = nn.Linear(config["hidden_size"], config["intermediate_size"])
+    self.intermediate_act_fn = ACT2FN[config["hidden_act"]]
     # self.intermediate_act_fn = config.hidden_act
 
   def forward(self, hidden_states):
@@ -223,10 +223,10 @@ class BertOutput(nn.Module):
 
   def __init__(self, config):
     super(BertOutput, self).__init__()
-    self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
-    self.layer_norm = BertLayerNorm(config.hidden_size,
-                                    eps=config.layer_norm_eps)
-    self.dropout = nn.Dropout(config.hidden_dropout_prob)
+    self.dense = nn.Linear(config["intermediate_size"], config["hidden_size"])
+    self.layer_norm = BertLayerNorm(config["hidden_size"],
+                                    eps=config["layer_norm_eps"])
+    self.dropout = nn.Dropout(config["hidden_dropout_prob"])
 
   def forward(self, hidden_states, input_tensor):
     hidden_states = self.dense(hidden_states)
@@ -262,7 +262,7 @@ class BertEncoder(nn.Module):
     self.output_attentions = False
     self.output_hidden_states = False
     self.layer = nn.ModuleList(
-        [BertLayer(config) for _ in range(config.num_hidden_layers)])
+        [BertLayer(config) for _ in range(config["num_hidden_layers"])])
 
   def forward(self, hidden_states, attention_mask, head_mask=None):
     all_hidden_states = ()
@@ -295,7 +295,7 @@ class BertPooler(nn.Module):
 
   def __init__(self, config):
     super(BertPooler, self).__init__()
-    self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+    self.dense = nn.Linear(config["hidden_size"], config["hidden_size"])
     self.activation = nn.Tanh()
 
   def forward(self, hidden_states):
@@ -359,7 +359,7 @@ class BertModel(nn.Module):
   def _init_weights(self, module):
     """Initialize the weights."""
     if isinstance(module, (nn.Linear, nn.Embedding)):
-      module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+      module.weight.data.normal_(mean=0.0, std=self.config["initializer_range"])
     elif isinstance(module, BertLayerNorm):
       module.bias.data.zero_()
       module.weight.data.fill_(1.0)
@@ -392,7 +392,7 @@ class BertModel(nn.Module):
         dtype=next(self.parameters()).dtype)  # fp16 compatibility
     extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
-    head_mask = [None] * self.config.num_hidden_layers
+    head_mask = [None] * self.config["num_hidden_layers"]
 
     embedding_output = self.embeddings(input_ids,
                                        position_ids=position_ids,
