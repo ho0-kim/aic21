@@ -76,27 +76,27 @@ class BertEmbeddings(nn.Module):
     super(BertEmbeddings, self).__init__()
     self.position_embeddings = nn.Embedding(config["max_position_embeddings"],
                                             config["hidden_size"])
-    self.token_type_embeddings = nn.Embedding(config["type_vocab_size"],
-                                              config["hidden_size"])
+    # self.token_type_embeddings = nn.Embedding(config["type_vocab_size"],
+    #                                           config["hidden_size"])
     self.layer_norm = BertLayerNorm(config["hidden_size"],
                                     eps=config["layer_norm_eps"])
     self.dropout = nn.Dropout(config["hidden_dropout_prob"])
 
   def forward(self,
-              input_ids,
-              token_type_ids=None,
               position_ids=None,
               features=None):
-    if token_type_ids is None:
-      token_type_ids = torch.zeros_like(input_ids)
+    # if token_type_ids is None:
+    #   token_type_ids = torch.zeros_like(input_ids)
 
-    token_type_embeddings = self.token_type_embeddings(token_type_ids)
+    # token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
     if position_ids is not None:
       position_embeddings = self.position_embeddings(position_ids)
-      embeddings = position_embeddings + token_type_embeddings + features
+      # embeddings = position_embeddings + token_type_embeddings + features
+      embeddings = position_embeddings + features
     else:
-      embeddings = token_type_embeddings + features
+      # embeddings = token_type_embeddings + features
+      embeddings = features
 
     embeddings = self.layer_norm(embeddings)
     embeddings = self.dropout(embeddings)
@@ -367,15 +367,11 @@ class BertModel(nn.Module):
       module.bias.data.zero_()
 
   def forward(self,
-              input_ids,
               attention_mask=None,
-              token_type_ids=None,
               position_ids=None,
               features=None):
-    if attention_mask is None:
-      attention_mask = torch.ones_like(input_ids)
-    if token_type_ids is None:
-      token_type_ids = torch.zeros_like(input_ids)
+    # if attention_mask is None:
+    #   attention_mask = torch.ones_like(input_ids)
 
     # We create a 3D attention mask from a 2D tensor mask.
     # Sizes are [batch_size, 1, 1, to_seq_length]
@@ -394,9 +390,7 @@ class BertModel(nn.Module):
 
     head_mask = [None] * self.config["num_hidden_layers"]
 
-    embedding_output = self.embeddings(input_ids,
-                                       position_ids=position_ids,
-                                       token_type_ids=token_type_ids,
+    embedding_output = self.embeddings(position_ids=position_ids,
                                        features=features)
     encoder_outputs = self.encoder(embedding_output,
                                    extended_attention_mask,
