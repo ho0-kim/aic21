@@ -33,60 +33,113 @@ class CEModel(nn.Module):
         self.cfg_model = cfg["model"]
         self.cfg_data = cfg["data"]
 
-        if self.cfg_model["reducedim_method_frame"] == "simple":
-            kernel_size = (self.cfg_data["frame_size"][0] - 64 + 1,
-                        self.cfg_data["frame_size"][1] - 64 + 1)
-            self.reducedim_fs = nn.Sequential(
-                nn.Conv2d(6, 10, kernel_size),
-                nn.Conv2d(10, 16, (33, 33)),
-                nn.Conv2d(16, 32, (17, 17)),
-                nn.Flatten(),
-                ReduceDim(32*16*16, 256)
-            )
-        elif self.cfg_model["reducedim_method_frame"] == "resnet":
-            kernel_size = (self.cfg_data["frame_size"][0] - 224 + 1,
-                        self.cfg_data["frame_size"][1] - 224 + 1)
-            resnet_fs = resnet18(pretrained=True)
-            resnet_fs.fc = nn.Linear(512, 256) #nn.Sequential()
-            self.reducedim_fs = nn.Sequential(
-                nn.Conv2d(6, 3, kernel_size),
-                resnet_fs
-            )
+        if self.cfg_model["use_token_type"]:
+            if self.cfg_model["reducedim_method_frame"] == "simple":
+                kernel_size = (self.cfg_data["frame_size"][0] - 64 + 1,
+                            self.cfg_data["frame_size"][1] - 64 + 1)
+                self.reducedim_fr = nn.Sequential(
+                    nn.Conv2d(3, 10, kernel_size),
+                    nn.Conv2d(10, 16, (33, 33)),
+                    nn.Conv2d(16, 32, (17, 17)),
+                    nn.Flatten(),
+                    ReduceDim(32*16*16, 512)
+                )
+            elif self.cfg_model["reducedim_method_frame"] == "resnet":
+                self.reducedim_fr = resnet18(pretrained=True)
+                self.reducedim_fr.fc = nn.Sequential()
 
-        if self.cfg_model["reducedim_method_crop"] == "simple":
-            kernel_size = (self.cfg_data["crop_size"][0] - 64 + 1,
-                        self.cfg_data["crop_size"][1] - 64 + 1)
-            self.reducedim_cr = nn.Sequential(
-                nn.Conv2d(3, 10, kernel_size),
-                nn.Conv2d(10, 16, (33, 33)),
-                nn.Conv2d(16, 32, (17, 17)),
-                nn.Flatten(),
-                ReduceDim(32*16*16, 128)
-            )
-        elif self.cfg_model["reducedim_method_crop"] == "resnet":
-            kernel_size = (self.cfg_data["crop_size"][0] - 64 + 1,
-                        self.cfg_data["crop_size"][1] - 64 + 1)
-            resnet_cr = resnet18(pretrained=True)
-            resnet_cr.fc = nn.Linear(512, 128)
-            self.reducedim_cr = nn.Sequential(
-                nn.Conv2d(3, 3, kernel_size),
-                resnet_cr
-            )
+            if self.cfg_model["reducedim_method_seg"] == "simple":
+                kernel_size = (self.cfg_data["frame_size"][0] - 64 + 1,
+                            self.cfg_data["frame_size"][1] - 64 + 1)
+                self.reducedim_se = nn.Sequential(
+                    nn.Conv2d(3, 10, kernel_size),
+                    nn.Conv2d(10, 16, (33, 33)),
+                    nn.Conv2d(16, 32, (17, 17)),
+                    nn.Flatten(),
+                    ReduceDim(32*16*16, 512)
+                )
+            elif self.cfg_model["reducedim_method_seg"] == "resnet":
+                self.reducedim_se = resnet18(pretrained=True)
+                self.reducedim_se.fc = nn.Sequential()
+            
+            if self.cfg_model["reducedim_method_crop"] == "simple":
+                kernel_size = (self.cfg_data["crop_size"][0] - 64 + 1,
+                            self.cfg_data["crop_size"][1] - 64 + 1)
+                self.reducedim_cr = nn.Sequential(
+                    nn.Conv2d(3, 10, kernel_size),
+                    nn.Conv2d(10, 16, (33, 33)),
+                    nn.Conv2d(16, 32, (17, 17)),
+                    nn.Flatten(),
+                    ReduceDim(32*16*16, 512)
+                )
+            elif self.cfg_model["reducedim_method_crop"] == "resnet":
+                self.reducedim_cr = resnet18(pretrained=True)
+                self.reducedim_cr.fc = nn.Sequential()
 
-        self.reducedim_hist = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(3 * 256, 122)
-        )        
+            self.reducedim_hist = nn.Sequential(
+                nn.Flatten(),
+                nn.Linear(3 * 256, 512)
+            )
+        else:
+            if self.cfg_model["reducedim_method_frame"] == "simple":
+                kernel_size = (self.cfg_data["frame_size"][0] - 64 + 1,
+                            self.cfg_data["frame_size"][1] - 64 + 1)
+                self.reducedim_fs = nn.Sequential(
+                    nn.Conv2d(6, 10, kernel_size),
+                    nn.Conv2d(10, 16, (33, 33)),
+                    nn.Conv2d(16, 32, (17, 17)),
+                    nn.Flatten(),
+                    ReduceDim(32*16*16, 256)
+                )
+            elif self.cfg_model["reducedim_method_frame"] == "resnet":
+                kernel_size = (self.cfg_data["frame_size"][0] - 224 + 1,
+                            self.cfg_data["frame_size"][1] - 224 + 1)
+                resnet_fs = resnet18(pretrained=True)
+                resnet_fs.fc = nn.Linear(512, 256) #nn.Sequential()
+                self.reducedim_fs = nn.Sequential(
+                    nn.Conv2d(6, 3, kernel_size),
+                    resnet_fs
+                )
+
+            if self.cfg_model["reducedim_method_crop"] == "simple":
+                kernel_size = (self.cfg_data["crop_size"][0] - 64 + 1,
+                            self.cfg_data["crop_size"][1] - 64 + 1)
+                self.reducedim_cr = nn.Sequential(
+                    nn.Conv2d(3, 10, kernel_size),
+                    nn.Conv2d(10, 16, (33, 33)),
+                    nn.Conv2d(16, 32, (17, 17)),
+                    nn.Flatten(),
+                    ReduceDim(32*16*16, 128)
+                )
+            elif self.cfg_model["reducedim_method_crop"] == "resnet":
+                kernel_size = (self.cfg_data["crop_size"][0] - 64 + 1,
+                            self.cfg_data["crop_size"][1] - 64 + 1)
+                resnet_cr = resnet18(pretrained=True)
+                resnet_cr.fc = nn.Linear(512, 128)
+                self.reducedim_cr = nn.Sequential(
+                    nn.Conv2d(3, 3, kernel_size),
+                    resnet_cr
+                )
+
+            self.reducedim_hist = nn.Sequential(
+                nn.Flatten(),
+                nn.Linear(3 * 256, 122)
+            )        
 
 
         self.txt_tokenizer = BertTokenizer.from_pretrained(self.cfg_model["bert_pretrained_model"],
-                                                            do_lower_case=True)
+                                                            do_lower_case=True,
+                                                            )
         self.txt_bert = BertModel.from_pretrained(self.cfg_model["bert_pretrained_model"])
         self.lang_fc = torch.nn.Linear(768, self.cfg_model["embedding_size"])
 
         self.vid_bert = VidBertModel(self.cfg_model["vid_bert_params"])
 
     def forward(self, input):
+
+        batch_size = input["frames"].shape[0]
+        seq_full_len = input["frames"].shape[1]
+
         print(f'input type {type(input)}')
         print(f'input[frames] shape {input["frames"].shape}')
         print(f'input[frames] type {type(input["frames"])}')
@@ -101,57 +154,101 @@ class CEModel(nn.Module):
         
         # 512 dimension combining all features
         features_list = []
+        token_type_ids_list = []
         attention_mask_list = []
         position_ids_list = []
         
         concat = torch.cat((input["frames"], input["segments"]), 2)
         print(f'concatenate result {concat.shape}')
-        for i in range(input["frames"].shape[0]):
-            features_list.append(torch.cat((self.reducedim_fs(concat[i]),
-                                            self.reducedim_cr(input["crops"][i]),
-                                            self.reducedim_hist(input["histograms"][i]),
-                                            input["boxes"][i],
-                                            input["positions"][i]), 1))
-            position_ids_list.append(torch.hstack((torch.arange(0, input["sequence_len"][i][0]), 
-                                    torch.full((input["frames"].shape[1] - input["sequence_len"][i][0].int(),), 0))))
-            attention_mask_list.append(torch.hstack((torch.full((input["sequence_len"][i][0].int(),), 1),
-                                    torch.full((input["frames"].shape[1] - input["sequence_len"][i][0].int(),), 0))))
+
+        if self.cfg_model["use_token_type"]:
+            modal_feat = [[] for _ in range(len(self.cfg_data["modalities"]))]
+            for i in range(batch_size):
+                modal_feat[0].append(self.reducedim_fr(input["frames"][i]))
+                modal_feat[1].append(self.reducedim_se(input["segments"][i]))
+                modal_feat[2].append(self.reducedim_cr(input["crops"][i]))
+                modal_feat[3].append(self.reducedim_hist(input["histograms"][i]))
+                modal_feat[4].append(torch.hstack((input["boxes"][i], 
+                                                torch.zeros((input["boxes"].shape[1], 508), 
+                                                device=torch.device('cuda:0')))))
+                modal_feat[5].append(torch.hstack((input["positions"][i], 
+                                                torch.zeros((input["positions"].shape[1], 510), 
+                                                device=torch.device('cuda:0')))))
+
+                position_ids_list.append(torch.hstack((torch.arange(0, input["sequence_len"][i][0]), 
+                                        torch.full((seq_full_len - input["sequence_len"][i][0].int(),), 0))))
+                attention_mask_list.append(torch.hstack((torch.full((input["sequence_len"][i][0].int(),), 1),
+                                        torch.full((seq_full_len - input["sequence_len"][i][0].int(),), 0))))
+
+            position_ids = torch.stack(position_ids_list).to(
+                                                dtype=torch.long, 
+                                                device=torch.device('cuda:0'))
+            attention_mask = torch.stack(attention_mask_list).cuda()
+
+            vid_embds_list = []
+            for i in range(len(self.cfg_data["modalities"])):
+                _token_type_ids = torch.full((batch_size, seq_full_len,), i, device=torch.device('cuda:0'))
+                features = torch.stack(modal_feat[i])
+                vid_bert_output = self.vid_bert(attention_mask=attention_mask,
+                                                position_ids=position_ids,
+                                                token_type_ids=_token_type_ids,
+                                                features=features)
+                last_layer = vid_bert_output[0]
+                vid_embds_list.append(last_layer[:,0])
+            vid_embds = torch.stack(vid_embds_list)
+
+        else:
+            for i in range(batch_size):
+                features_list.append(torch.cat((self.reducedim_fs(concat[i]),
+                                                self.reducedim_cr(input["crops"][i]),
+                                                self.reducedim_hist(input["histograms"][i]),
+                                                input["boxes"][i],
+                                                input["positions"][i]), 1))
+                position_ids_list.append(torch.hstack((torch.arange(0, input["sequence_len"][i][0]), 
+                                        torch.full((seq_full_len - input["sequence_len"][i][0].int(),), 0))))
+                attention_mask_list.append(torch.hstack((torch.full((input["sequence_len"][i][0].int(),), 1),
+                                        torch.full((seq_full_len - input["sequence_len"][i][0].int(),), 0))))
+                
+            features = torch.stack(features_list).cuda()
+            position_ids = torch.stack(position_ids_list).to(
+                                                dtype=torch.long, 
+                                                device=torch.device('cuda:0'))
+            attention_mask = torch.stack(attention_mask_list).cuda()
+
+            print(f'feature embedding shape {features.shape}')
+            print(f'position_ids shape {position_ids.shape}')
+            print(f'attention mask shape {attention_mask.shape}')
             
-        features = torch.stack(features_list).cuda()
-        position_ids = torch.stack(position_ids_list).to(
-                                            dtype=torch.long, 
-                                            device=torch.device('cuda:0'))
-        attention_mask = torch.stack(attention_mask_list).cuda()
+            # Video Embedding
 
-        print(f'feature embedding shape {features.shape}')
-        print(f'position_ids shape {position_ids.shape}')
-        print(f'attention mask shape {attention_mask.shape}')
-        
-        # Video Embedding
-
-        vid_bert_output = self.vid_bert(attention_mask, position_ids, features)
-        last_layer = vid_bert_output[0]
-        vid_embd = last_layer[:, 0]
-        print(f'video embedding shape {vid_embd.shape}')
+            vid_bert_output = self.vid_bert(attention_mask=attention_mask, 
+                                            position_ids=position_ids, 
+                                            features=features)
+            last_layer = vid_bert_output[0]
+            vid_embds = last_layer[:, 0].unsqueeze_(0)
+        print(f'video embedding shape {vid_embds.shape}')
 
         # Text Embedding
-
         txt_embd_list = []
         for minibatch in input["nl"]:
-            token = self.txt_tokenizer(minibatch,
-                                        padding=True,
-                                        truncation=True,
-                                        max_length=64,
+            token = self.txt_tokenizer.batch_encode_plus(minibatch,
+                                        max_length=128,
+                                        padding='longest',
                                         return_tensors="pt").to(device=torch.device('cuda'))
-            txt_embd = self.txt_bert(**token).last_hidden_state
-            txt_embd = torch.mean(txt_embd, dim=1)
+            # txt_embd = self.txt_bert(**token).last_hidden_state
+            txt_bert_output = self.txt_bert(**token)
+            txt_last_layer = txt_bert_output[0]
+            if self.cfg_model["text_post"] == 'mean':
+                txt_embd = torch.mean(txt_last_layer, dim=1)
+            elif self.cfg_model["text_post"] == 'max':
+                txt_embd, _ = torch.max(txt_last_layer, dim=1)
             txt_embd = self.lang_fc(txt_embd)
             txt_embd_list.append(txt_embd)
         txt_embds = torch.stack(txt_embd_list).cuda()
         print(f'text embedding shape {txt_embds.shape}')
 
         return {
-            'vid_embd' : vid_embd,
+            'vid_embds' : vid_embds,
             'txt_embds' : txt_embds,
         }
 

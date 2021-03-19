@@ -6,19 +6,31 @@
 
         "cityflow_path" : ".",
 
+        "modalities" : ["frames",
+                        "segments",
+                        "crops",
+                        "histograms",
+                        "boxes",
+                        "positions"],
+
         "positive_threshold" : 0.5,
         "crop_size" : [128, 128],
         "frame_size" : [256, 256],
 
-        "skip_frame" : 1
+        "skip_frame" : 2
     },
 
     "model":{
         "bert_pretrained_model" : "bert-base-cased",
+        "text_post" : "max",
+
         "embedding_size" : 512,
 
         "reducedim_method_frame" : "resnet",
+        "reducedim_method_seg" : "simple",
         "reducedim_method_crop" : "resnet",
+
+        "use_token_type" : false,
 
         "vid_bert_params" : {
             "vocab_size_or_config_json_file": 10,
