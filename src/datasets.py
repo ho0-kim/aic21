@@ -20,19 +20,10 @@ class CityFlowNLDataset(Dataset):
             tracks = json.load(f)
         self.list_of_uuids = list(tracks.keys())
         self.list_of_tracks = list(tracks.values())
-        # self.list_of_crops = list()
-        # for track in self.list_of_tracks:
-        #     for frame_idx, frame in enumerate(track["frames"]):
-        #         frame_path = os.path.join(self.data_cfg["cityflow_path"], frame)
-        #         nl_idx = int(random.uniform(0, 3))
-        #         nl = track["nl"][nl_idx]
-        #         box = track["boxes"][frame_idx]
-        #         crop = {"frame": frame_path, "nl": nl, "box": box}
-        #         self.list_of_crops.append(crop)
-        # self._logger = get_logger()
+        
+        self.skip = data_cfg["skip_frame"] + 1
 
     def __len__(self):
-        # return len(self.list_of_crops)
         return len(self.list_of_uuids)
 
     def __getitem__(self, index):
@@ -53,32 +44,32 @@ class CityFlowNLDataset(Dataset):
         boxes = []
         positions = []
         for i, frame_path in enumerate(track["frames"]):
-            if i % self.data_cfg["skip_frame"] == 0: # Skip frames
-                continue
-            frame = cv2.imread(frame_path)
-            box = track["boxes"][i]
-            crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
-            crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
-            hist = [cv2.calcHist([crop],[0],None,[256],[0,256]), # B
-                    cv2.calcHist([crop],[1],None,[256],[0,256]), # G
-                    cv2.calcHist([crop],[2],None,[256],[0,256])] # R
-
-            img_file = os.path.basename(frame_path)
-            img_name = img_file.split(".")[0]
-            seg_path = os.path.dirname(os.path.dirname(frame_path))
-            seg_path = os.path.join(seg_path, "seg")
-            seg_path = os.path.join(seg_path, img_name+"_prediction.png")
-            segmented = cv2.imread(seg_path)
-
-            frame = cv2.resize(frame, dsize=tuple(self.data_cfg["frame_size"]))
-            segmented = cv2.resize(segmented, dsize=tuple(self.data_cfg["frame_size"]))
+            if i % self.skip == 0: # Skip frames
             
-            frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
-            crops.append(torch.from_numpy(crop).permute([2, 0, 1]).cuda())
-            histograms.append(torch.FloatTensor(hist).cuda())
-            positions.append(torch.FloatTensor([box[0], box[1]]).cuda())
-            segments.append(torch.from_numpy(segmented).permute([2, 0, 1]).cuda())
-            boxes.append(torch.FloatTensor(box).cuda())
+                frame = cv2.imread(frame_path)
+                box = track["boxes"][i]
+                crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
+                crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
+                hist = [cv2.calcHist([crop],[0],None,[256],[0,256]), # B
+                        cv2.calcHist([crop],[1],None,[256],[0,256]), # G
+                        cv2.calcHist([crop],[2],None,[256],[0,256])] # R
+
+                img_file = os.path.basename(frame_path)
+                img_name = img_file.split(".")[0]
+                seg_path = os.path.dirname(os.path.dirname(frame_path))
+                seg_path = os.path.join(seg_path, "seg")
+                seg_path = os.path.join(seg_path, img_name+"_prediction.png")
+                segmented = cv2.imread(seg_path)
+
+                frame = cv2.resize(frame, dsize=tuple(self.data_cfg["frame_size"]))
+                segmented = cv2.resize(segmented, dsize=tuple(self.data_cfg["frame_size"]))
+                
+                frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
+                crops.append(torch.from_numpy(crop).permute([2, 0, 1]).cuda())
+                histograms.append(torch.FloatTensor(hist).cuda())
+                positions.append(torch.FloatTensor([box[0], box[1]]).cuda())
+                segments.append(torch.from_numpy(segmented).permute([2, 0, 1]).cuda())
+                boxes.append(torch.FloatTensor(box).cuda())
 
         dp = {}
         dp["frames"] = frames
