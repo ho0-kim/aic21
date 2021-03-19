@@ -37,6 +37,11 @@ class CityFlowNLDataset(Dataset):
             label = 0
 
         track = self.list_of_tracks[index]
+        if label == 0:
+            nl_index = random.choice([ x for x in range(len(self.list_of_tracks)) if x != index])
+        else:
+            nl_index = index
+        nl_track = self.list_of_tracks[nl_index]
 
         frames = []
         crops = []
@@ -80,7 +85,7 @@ class CityFlowNLDataset(Dataset):
         dp["boxes"] = boxes
         dp["positions"] = positions
         dp["label"] = torch.Tensor([label]).to(dtype=torch.float32).cuda()
-        dp["nl"] = random.sample(track["nl"], 3)
+        dp["nl"] = random.sample(nl_track["nl"], 3)
 
         return dp
 
