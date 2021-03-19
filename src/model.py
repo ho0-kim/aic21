@@ -174,12 +174,13 @@ if __name__ == '__main__':
 
     torch.multiprocessing.set_start_method('spawn')
 
-    dataset = CityFlowNLDataset(cfg["data"])
+    dataset = CityFlowNLDataset(cfg)
     train_sampler = RandomSampler(dataset)
     dataloader = DataLoader(dataset, batch_size=cfg["train"]["batch_size"], #cfg.TRAIN.BATCH_SIZE,
                             num_workers=cfg["train"]["num_workers"], #cfg.TRAIN.NUM_WORKERS,
                             sampler=train_sampler,
-                            collate_fn=dataset.collate_fn)
+                            collate_fn=dataset.collate_fn,
+                            worker_init_fn=dataset.seed_worker)
 
     model = CEModel(cfg=cfg).cuda()#.to(torch.device('cuda:0'))
 

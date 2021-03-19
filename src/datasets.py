@@ -10,18 +10,19 @@ from torch.nn.utils.rnn import pack_sequence
 
 
 class CityFlowNLDataset(Dataset):
-    def __init__(self, data_cfg):
+    def __init__(self, cfg):
         """
         Dataset for training.
         :param data_cfg: CfgNode for CityFlow NL.
         """
-        self.data_cfg = data_cfg
+        self.seed = cfg["seed"]
+        self.data_cfg = cfg["data"]
         with open(self.data_cfg["train_json"]) as f:
             tracks = json.load(f)
         self.list_of_uuids = list(tracks.keys())
         self.list_of_tracks = list(tracks.values())
         
-        self.skip = data_cfg["skip_frame"] + 1
+        self.skip = self.data_cfg["skip_frame"] + 1
 
     def __len__(self):
         return len(self.list_of_uuids)
@@ -141,6 +142,10 @@ class CityFlowNLDataset(Dataset):
 
         return ret
 
+    def seed_worker(self, worker_id):
+        worker_seed = self.seed + worker_id
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
 
 
 
@@ -216,7 +221,7 @@ if __name__ == '__main__':
 
     cfg = conf
 
-    dataset = CityFlowNLDataset(cfg["data"])
+    dataset = CityFlowNLDataset(cfg)
 
     # train_sampler = DistributedSampler(dataset)
     # train_sampler = SequentialSampler(dataset)
@@ -224,7 +229,8 @@ if __name__ == '__main__':
     dataloader = DataLoader(dataset, batch_size=cfg["train"]["batch_size"], #cfg.TRAIN.BATCH_SIZE,
                             num_workers=cfg["train"]["num_workers"], #cfg.TRAIN.NUM_WORKERS,
                             sampler=train_sampler,
-                            collate_fn=dataset.collate_fn)
+                            collate_fn=dataset.collate_fn,
+                            worker_init_fn=dataset.seed_worker)
     print('dataloader set')
 
     i = 0
