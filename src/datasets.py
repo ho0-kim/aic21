@@ -145,6 +145,8 @@ class CityFlowNLDataset(Dataset):
 
         ret["histograms"] = ret["histograms"] / 2025.
 
+        del batch
+
         return ret
 
     def seed_worker(self, worker_id):

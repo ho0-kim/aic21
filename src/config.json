@@ -45,12 +45,35 @@
             "type_vocab_size": 1,
             "initializer_range": 0.02,
             "layer_norm_eps": 1e-12
+        },
+
+        "similiarity_method" : "pairwise"
+    },
+
+    "loss":{
+        "type": "BinaryCrossEntropy",
+        "args": {
+            "margin": 0.05,
+            "fix_norm": true
         }
+    },
+
+    "optimizer":{
+        "type": "adam",
+        "lr": 5e-05,
+        "weight_decay": 0,
+        "momentum": 0.9
+    },   
+
+    "lr_scheduler": {
+        "type": "StepLR",
+        "step_size": 1,
+        "gamma": 0.95
     },
 
     "train":{
         "batch_size" : 5,
-        "num_workers" : 2
+        "num_workers" : 1
     },
 
     "seed" : 777

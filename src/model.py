@@ -140,15 +140,15 @@ class CEModel(nn.Module):
         batch_size = input["frames"].shape[0]
         seq_full_len = input["frames"].shape[1]
 
-        print(f'input type {type(input)}')
-        print(f'input[frames] shape {input["frames"].shape}')
-        print(f'input[frames] type {type(input["frames"])}')
-        print(f'input[segments] shape {input["segments"].shape}')
-        print(f'input[crops] shape {input["crops"].shape}')
-        print(f'input[histograms] shape {input["histograms"].shape}')
-        print(f'input[boxes] shape {input["boxes"].shape}')
-        print(f'input[positions] shape {input["positions"].shape}')
-        print(f'input[sequence_len] shape {input["sequence_len"].shape}')
+        # print(f'input type {type(input)}')
+        # print(f'input[frames] shape {input["frames"].shape}')
+        # print(f'input[frames] type {type(input["frames"])}')
+        # print(f'input[segments] shape {input["segments"].shape}')
+        # print(f'input[crops] shape {input["crops"].shape}')
+        # print(f'input[histograms] shape {input["histograms"].shape}')
+        # print(f'input[boxes] shape {input["boxes"].shape}')
+        # print(f'input[positions] shape {input["positions"].shape}')
+        # print(f'input[sequence_len] shape {input["sequence_len"].shape}')
 
         ### feature embedding (= frames, seg, cropped, positions, etc)
         
@@ -159,7 +159,7 @@ class CEModel(nn.Module):
         position_ids_list = []
         
         concat = torch.cat((input["frames"], input["segments"]), 2)
-        print(f'concatenate result {concat.shape}')
+        # print(f'concatenate result {concat.shape}')
 
         if self.cfg_model["use_token_type"]:
             modal_feat = [[] for _ in range(len(self.cfg_data["modalities"]))]
@@ -195,7 +195,7 @@ class CEModel(nn.Module):
                                                 features=features)
                 last_layer = vid_bert_output[0]
                 vid_embds_list.append(last_layer[:,0])
-            vid_embds = torch.stack(vid_embds_list)
+            vid_embds = torch.stack(vid_embds_list).permute([1, 0, 2])
 
         else:
             for i in range(batch_size):
@@ -215,9 +215,9 @@ class CEModel(nn.Module):
                                                 device=torch.device('cuda:0'))
             attention_mask = torch.stack(attention_mask_list).cuda()
 
-            print(f'feature embedding shape {features.shape}')
-            print(f'position_ids shape {position_ids.shape}')
-            print(f'attention mask shape {attention_mask.shape}')
+            # print(f'feature embedding shape {features.shape}')
+            # print(f'position_ids shape {position_ids.shape}')
+            # print(f'attention mask shape {attention_mask.shape}')
             
             # Video Embedding
 
@@ -225,8 +225,8 @@ class CEModel(nn.Module):
                                             position_ids=position_ids, 
                                             features=features)
             last_layer = vid_bert_output[0]
-            vid_embds = last_layer[:, 0].unsqueeze_(0)
-        print(f'video embedding shape {vid_embds.shape}')
+            vid_embds = last_layer[:, 0].unsqueeze_(1)
+        # print(f'video embedding shape {vid_embds.shape}')
 
         # Text Embedding
         txt_embd_list = []
@@ -245,12 +245,45 @@ class CEModel(nn.Module):
             txt_embd = self.lang_fc(txt_embd)
             txt_embd_list.append(txt_embd)
         txt_embds = torch.stack(txt_embd_list).cuda()
-        print(f'text embedding shape {txt_embds.shape}')
+        # print(f'text embedding shape {txt_embds.shape}')
 
         return {
             'vid_embds' : vid_embds,
             'txt_embds' : txt_embds,
+            'label' : input["label"]
         }
+
+
+    def compute_similarity(self, vid_embds, txt_embds):
+        if self.cfg_model["similiarity_method"] == "pairwise":
+            if self.cfg_model["use_token_type"]:
+                pass
+            else:
+                sims = []
+                for i in range(len(txt_embds[0])):
+                    d = F.pairwise_distance(vid_embds, txt_embds[:, i, :])
+                    sims.append(torch.mean(torch.exp(-d), dim=1))
+                sims = torch.sum(torch.stack(sims).permute([1, 0]), dim=1, keepdim=True)
+        else:
+            if self.cfg_model["use_token_type"]:
+                pass
+            else:
+                sims = []
+                sims = torch.matmul(vid_embds, txt_embds.permute([0, 2, 1]))
+                sims = torch.mean(sims, dim=2)
+        return sims
+
+def get_optimizer(cfg, params):
+    if cfg["optimizer"]["type"] == "adam":
+        optimizer = torch.optim.Adam(params, 
+                        lr=cfg["optimizer"]["lr"],
+                        weight_decay=cfg["optimizer"]["weight_decay"])
+    elif cfg["optimizer"]["type"] == "sgd":
+        optimizer = torch.optim.SGD(params,
+                        lr=cfg["optimizer"]["lr"],
+                        weight_decay=cfg["optimizer"]["weight_decay"],
+                        momentum=cfg["optimizer"]["momentum"])
+    return optimizer
 
 
 if __name__ == '__main__':
@@ -260,6 +293,8 @@ if __name__ == '__main__':
     from datasets import CityFlowNLDataset
     from torch.utils.data import DataLoader, RandomSampler
 
+    from loss import get_loss_model
+
     config_json = "src/config.json"
 
     with open(config_json) as f:
@@ -268,6 +303,9 @@ if __name__ == '__main__':
     np.random.seed(cfg["seed"])
     random.seed(cfg["seed"])
     torch.manual_seed(cfg["seed"])
+
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.benchmark = True
 
     torch.multiprocessing.set_start_method('spawn')
 
@@ -280,14 +318,30 @@ if __name__ == '__main__':
                             worker_init_fn=dataset.seed_worker)
 
     model = CEModel(cfg=cfg).cuda()#.to(torch.device('cuda:0'))
+    loss_model = get_loss_model(cfg)
 
-    i = 0
-    for batch in dataloader:
-        i += 1
+    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = get_optimizer(cfg, trainable_params)
 
-        out = model(batch)
+    epochs = 10
+    for e in range(epochs):
+        b = 0
+        for batch in dataloader:
+            b += 1
+            print(batch["sequence_len"])
+            optimizer.zero_grad()
 
-        print(out)
+            out = model(batch)
 
-        if i == 1:
-            break
+            similarity = model.compute_similarity(out["vid_embds"], out["txt_embds"])
+            loss = loss_model(similarity, out["label"])
+            print(f'Eposch : {e}  Batch : {b} Loss : {loss}')
+
+            loss.backward()
+            optimizer.step()
+
+            del loss
+            del similarity
+            del out
+
+            torch.cuda.empty_cache()
