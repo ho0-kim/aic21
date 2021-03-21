@@ -21,8 +21,6 @@ class CityFlowNLDataset(Dataset):
             tracks = json.load(f)
         self.list_of_uuids = list(tracks.keys())
         self.list_of_tracks = list(tracks.values())
-        
-        self.skip = self.data_cfg["skip_frame"] + 1
 
     def __len__(self):
         return len(self.list_of_uuids)
@@ -49,8 +47,15 @@ class CityFlowNLDataset(Dataset):
         segments = []
         boxes = []
         positions = []
+
+        seq_len = len(track["frames"])
+        if seq_len > self.data_cfg["max_seq_len"]:
+            skip = seq_len // (self.data_cfg["max_seq_len"] / 2)
+        else:
+            skip = 1
+
         for i, frame_path in enumerate(track["frames"]):
-            if i % self.skip == 0: # Skip frames
+            if i % skip == 0: # Skip frames
             
                 frame = cv2.imread(frame_path)
                 box = track["boxes"][i]
@@ -144,8 +149,6 @@ class CityFlowNLDataset(Dataset):
         ret["positions"][:,:,1] = ret["positions"][:,:,1] / 1080.
 
         ret["histograms"] = ret["histograms"] / 2025.
-
-        del batch
 
         return ret
 

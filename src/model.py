@@ -328,7 +328,7 @@ if __name__ == '__main__':
         b = 0
         for batch in dataloader:
             b += 1
-            print(batch["sequence_len"])
+            
             optimizer.zero_grad()
 
             out = model(batch)
@@ -340,8 +340,8 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-            del loss
-            del similarity
-            del out
+            # del loss
+            # del similarity
+            # del out
 
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
