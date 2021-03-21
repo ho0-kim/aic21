@@ -72,8 +72,9 @@
     },
 
     "train":{
-        "batch_size" : 10,
-        "num_workers" : 1
+        "num_epochs" : 100,
+        "batch_size" : 5,
+        "num_workers" : 3
     },
 
     "seed" : 777
