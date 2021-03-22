@@ -58,6 +58,7 @@ class CityFlowNLDataset(Dataset):
             if i % skip == 0: # Skip frames
             
                 frame = cv2.imread(frame_path)
+                frm_h, frm_w, _ = frame.shape
                 box = track["boxes"][i]
                 crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
                 crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
@@ -74,6 +75,11 @@ class CityFlowNLDataset(Dataset):
 
                 frame = cv2.resize(frame, dsize=tuple(self.data_cfg["frame_size"]))
                 segmented = cv2.resize(segmented, dsize=tuple(self.data_cfg["frame_size"]))
+
+                box[0] = box[0] / frm_w
+                box[2] = box[2] / frm_w
+                box[1] = box[1] / frm_h
+                box[3] = box[3] / frm_h
                 
                 frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
                 crops.append(torch.from_numpy(crop).permute([2, 0, 1]).cuda())
@@ -139,14 +145,6 @@ class CityFlowNLDataset(Dataset):
         ret["frames"] = ret["frames"] / 255.
         ret["crops"] = ret["crops"] / 255.
         ret["segments"] = ret["segments"] / 255.
-
-        ret["boxes"][:,:,0] = ret["boxes"][:,:,0] / 1920.
-        ret["boxes"][:,:,1] = ret["boxes"][:,:,1] / 1080.
-        ret["boxes"][:,:,2] = ret["boxes"][:,:,2] / 1920.
-        ret["boxes"][:,:,3] = ret["boxes"][:,:,0] / 1080.
-
-        ret["positions"][:,:,0] = ret["positions"][:,:,0] / 1920.
-        ret["positions"][:,:,1] = ret["positions"][:,:,1] / 1080.
 
         ret["histograms"] = ret["histograms"] / 2025.
 
