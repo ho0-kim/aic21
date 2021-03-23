@@ -68,6 +68,7 @@ def infer():
                             collate_fn=dataset.collate_fn,
                             worker_init_fn=dataset.seed_worker)
 
+    results_dict = {}
     for idx, query_id in enumerate(queries):
         print(f'Evaluate query {query_id}')
         track_score = dict()
@@ -90,6 +91,9 @@ def infer():
         with open(os.path.join(cfg["eval"]["log"], "%s.log" % query_id), "w") as f:
             for track in top_tracks:
                 f.write(f'{track}\n')
+        results_dict[query_id] = top_tracks
+    with open(os.path.join(cfg["eval"]["log"], "result.json"), "w") as f:
+        json.dump(results_dict)
     print(f'finished.')
 
 if __name__ == '__main__':
