@@ -265,13 +265,17 @@ class CEModel(nn.Module):
                     d = F.pairwise_distance(vid_embds, txt_embds[:, i, :])
                     sims.append(torch.mean(torch.exp(-d), dim=1))
                 sims = torch.sum(torch.stack(sims).permute([1, 0]), dim=1, keepdim=True)
-        else:
+        else:   # For MaxMarginRankingLoss
+            batch_size = vid_embds.size()[0]
             if self.cfg_model["use_token_type"]:
                 pass
             else:
                 sims = []
-                sims = torch.matmul(vid_embds, txt_embds.permute([0, 2, 1]))
-                sims = torch.mean(sims, dim=2)
+                for i in range(batch_size):
+                    sim = torch.matmul(vid_embds[i], txt_embds.permute([0, 2, 1]))
+                    sim = torch.mean(sim, dim=2)
+                    sims.append(sim)
+                sims = torch.stack(sims).squeeze()
         return sims
 
 def get_optimizer(cfg, params):
@@ -296,7 +300,8 @@ if __name__ == '__main__':
 
     from loss import get_loss_model
 
-    config_json = "src/config.json"
+    # config_json = "src/config.json"
+    config_json = "src/maxmargin.json"
 
     with open(config_json) as f:
         cfg = json.load(f)
