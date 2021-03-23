@@ -70,8 +70,8 @@
     },
 
     "eval": {
-        "restore_from"  : "./210321_210735_575568_epoch65.pt",
-        "batch_size"    : 1,
+        "restore_from"  : "./maxmargin_epoch70.pt",
+        "batch_size"    : 10,
         "num_workers"   : 3,
         "continue"      : "",
         "log"           : "./log/"

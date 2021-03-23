@@ -25,7 +25,8 @@ def float2timeformat(seconds):
 
 def infer():
     # Read configuation json file
-    config_json = "src/config.json"
+    # config_json = "src/config.json"
+    config_json = "src/maxmargin.json"
 
     with open(config_json, "r") as f:
         cfg = json.load(f)
@@ -68,33 +69,35 @@ def infer():
                             collate_fn=dataset.collate_fn,
                             worker_init_fn=dataset.seed_worker)
 
+    time_start = time.time()
     results_dict = {}
     for idx, query_id in enumerate(queries):
         print(f'Evaluate query {query_id}')
+        time_eval = time.time()
+
         track_score = dict()
         q = queries[query_id]
         q = [q for i in range(cfg["eval"]["batch_size"])]
 
-        count = 0       # (temporary code)
-
         for track in dataloader:
             s = model.compute_similarity_for_eval(track, q)
             s = s.detach()
-            track_id = track["id"][0]
-            track_score[track_id] = s.item()
+            for i in range(len(track["id"])):
+                track_id = track["id"][i]
+                track_score[track_id] = s[i]
 
-            if count % 10 == 9:         # (temporary code)
-                break                   # (temporary code)
-            count += 1                  # (temporary code)
-
-        top_tracks = sorted(track_score, key=track_score.get, reverse=True)
+        top_tracks = {k: v for k, v in sorted(track_score.items(), key=lambda item: item[1], reverse=True)}
+        
         with open(os.path.join(cfg["eval"]["log"], "%s.log" % query_id), "w") as f:
-            for track in top_tracks:
-                f.write(f'{track}\n')
-        results_dict[query_id] = top_tracks
+            for k, v in top_tracks.items():
+                f.write(f'{k} {v}\n')
+        print(type(top_tracks.keys()))
+        results_dict[query_id] = list(top_tracks.keys())
+        print(f'Elapse time: {time.time()-time_eval}')
     with open(os.path.join(cfg["eval"]["log"], "result.json"), "w") as f:
         json.dump(results_dict)
     print(f'finished.')
+    print(f'Elapse time for full evaluation: {time.time()-time_start}')
 
 if __name__ == '__main__':
     print(f'running script {__file__}')
