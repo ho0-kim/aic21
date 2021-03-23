@@ -108,14 +108,14 @@ def train(args):
             elapse_b = time_current - time_b_start
             elapse_e = time_current - time_e_start
             elapse_f = time_current - time_start
-            msg = f'Epoch : {e+1}  Batch : {b}/{num_batch} Loss : {loss}' + \
+            msg = f'Epoch : {e}  Batch : {b}/{num_batch} Loss : {loss}' + \
                     f' Elapse time : (batch) {float2timeformat(elapse_b)}' + \
                                 f' (epoch) {float2timeformat(elapse_e)}' + \
                                 f' (full) {float2timeformat(elapse_f)}'
             logger.debug(msg)
             print(msg)
             csv_writer.writerow([e+1, b, loss.cpu().detach().numpy()])
-        msg = f'Epoch : {e+1}  Average Loss : {losses / num_batch}' + \
+        msg = f'Epoch : {e}  Average Loss : {losses / num_batch}' + \
                     f' Elapse time : (epoch) {float2timeformat(elapse_e)}' + \
                                 f' (full) {float2timeformat(elapse_f)}'
         print(msg)
