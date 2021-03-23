@@ -3,6 +3,7 @@ import time
 import datetime
 import csv
 import logging
+import argparse
 
 import torch
 from torch.utils.data import DataLoader, RandomSampler
@@ -23,10 +24,9 @@ def float2timeformat(seconds):
     return "%2d:%2d:%2f" % (h, m, s)
 
 
-def infer():
+def infer(args):
     # Read configuation json file
-    # config_json = "src/config.json"
-    config_json = "src/maxmargin.json"
+    config_json = args.config
 
     with open(config_json, "r") as f:
         cfg = json.load(f)
@@ -101,4 +101,9 @@ def infer():
 
 if __name__ == '__main__':
     print(f'running script {__file__}')
-    infer()
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-c', '--config', required=True)
+    args = parser.parse_args()
+
+    infer(args=args)
