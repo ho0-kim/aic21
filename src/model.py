@@ -279,7 +279,10 @@ class CEModel(nn.Module):
             return self.compute_similarity(vid_embds, txt_embds).squeeze()
         else:   # For MaxMarginRankingLoss
             s = self.compute_similarity(vid_embds, txt_embds)
-            return torch.diag(s)
+            if tracks.size()[0] == 1:
+                return s
+            else:
+                return torch.diag(s)
 
 def get_optimizer(cfg, params):
     if cfg["optimizer"]["type"] == "adam":
