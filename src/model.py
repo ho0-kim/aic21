@@ -138,8 +138,8 @@ class CEModel(nn.Module):
 
     def forward(self, input):
         return {
-            'vid_embds' : compute_vid_embds(input),
-            'txt_embds' : compute_txt_embds(input["nl"]),
+            'vid_embds' : self.compute_vid_embds(input),
+            'txt_embds' : self.compute_txt_embds(input["nl"]),
             'label' : input["label"]
         }
 
@@ -272,8 +272,8 @@ class CEModel(nn.Module):
                 sims = torch.stack(sims).squeeze()
         return sims
 
-    def compute_similarity_for_eval(self, track, queries):
-        vid_embds = self.compute_vid_embds(track)
+    def compute_similarity_for_eval(self, tracks, queries):
+        vid_embds = self.compute_vid_embds(tracks)
         txt_embds = self.compute_txt_embds(queries)
         if self.cfg["loss"]["type"] == "BinaryCrossEntropy":
             return self.compute_similarity(vid_embds, txt_embds).squeeze()
