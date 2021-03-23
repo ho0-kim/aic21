@@ -162,10 +162,11 @@ class CityFlowNLDataset(Dataset):
 
 
 class CityFlowNLInferenceDataset(Dataset):
-    def __init__(self, data_cfg):
+    def __init__(self, cfg):
         """Dataset for evaluation. Loading tracks instead of frames."""
-        self.data_cfg = data_cfg
-        with open(self.data_cfg.EVAL_TRACKS_JSON_PATH) as f:
+        self.seed = cfg["seed"]
+        self.data_cfg = cfg["data"]
+        with open(self.data_cfg["test_track_json"]) as f:
             tracks = json.load(f)
         self.list_of_uuids = list(tracks.keys())
         self.list_of_tracks = list(tracks.values())
@@ -177,27 +178,109 @@ class CityFlowNLInferenceDataset(Dataset):
     def __getitem__(self, index):
         """
         :return: a dictionary for each track:
-        id: uuid for the track
-        frames, boxes, nl are untouched from the input json file.
-        crops: A Tensor of cropped images from the track of shape
-            [length, 3, crop_w, crop_h].
+        id, frames, boxes: uuid, frames, boxes for the track
         """
+        frames = []
+        boxes = []
+        crops = []
+        histograms = []
+        segments = []
+        positions = []
+
+        track = self.list_of_tracks[index]
+        seq_len = len(track["frames"])
+        if seq_len > self.data_cfg["max_seq_len"]:
+            skip = seq_len // (self.data_cfg["max_seq_len"] / 2) # might be removed.
+        else:
+            skip = 1
+
+        for frame_idx, frame_path in enumerate(track["frames"]):
+            if i % skip == 0:   # skip frames
+                frame = cv2.imread(frame_path)
+                frm_h, frm_w, _ = frame.shape
+                box = track["boxes"][frame_idx]
+                crop = frame[box[1]: box[1]+box[3], box[0]: box[0]+box[2], :]
+                crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
+                hist = [cv2.calcHist([crop], [0], None, [256], [0, 256]),   # B  # <----before permute
+                        cv2.calcHist([crop], [1], None, [256], [0, 256]),   # G
+                        cv2.calcHist([crop], [2], None, [256], [0, 256])]   # R
+
+                img_file = os.path.basename(frame_path)
+                img_name = img_file.split(".")[0]
+                seg_path = os.path.dirname(os.path.dirname(frame_path))
+                seg_path = os.path.join(seg_path, "seg")
+                seg_path = os.path.join(seg_path, img_name+"_prediction.png")
+                segmented = cv2.imread(seg_path)
+
+                frame = cv2.resize(frame, dsize=tuple(self.data_cfg["frame_size"]))
+                segmented = cv2.resize(segmented, dsize = tuple(self.data_cfg["frame_size"]))
+
+                box[0] = box[0] / frm_w     # <---- need to check pairing width and height
+                box[2] = box[2] / frm_w
+                box[1] = box[1] / frm_h
+                box[3] = box[3] / frm_h
+
+                frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
+                boxes.append(torch.FloatTensor(box).cuda())
+                crops.append(torch.from_numpy(crop).permute([2, 0, 1]).cuda())
+                histograms.append(torch.FloatTensor(hist).cuda())
+                segments.append(torch.from_numpy(segmented).permute([2, 0, 1]).cuda())
+                positions.append(torch.FloatTensor([box[0], box[1]]).cuda()) # <----y, x :why not centroid??
+
         dp = {"id": self.list_of_uuids[index]}
-        dp.update(self.list_of_tracks[index])
-        cropped_frames = []
-        for frame_idx, frame_path in enumerate(dp["frames"]):
-            frame_path = os.path.join(self.data_cfg.CITYFLOW_PATH, frame_path)
-            if not os.path.isfile(frame_path):
-                continue
-            frame = cv2.imread(frame_path)
-            box = dp["boxes"][frame_idx]
-            crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
-            crop = cv2.resize(crop, dsize=self.data_cfg.CROP_SIZE)
-            crop = torch.from_numpy(crop).permute([2, 0, 1]).to(
-                dtype=torch.float32)
-            cropped_frames.append(crop)
-        dp["crops"] = torch.stack(cropped_frames, dim=0)
+        dp.update({"frames": frames})
+        dp.update({"boxes": boxes})
+        dp.update({"crops": crops})             # <---- different from baseline; stacking in collate_fn
+        dp.update({"histograms": histograms})
+        dp.update({"segments": segments})
+        dp.update({"positions": positions})
+
         return dp
+
+    def collate_fn(self, batch):
+        # padding for batch
+        lengths = [len(t["frames"]) for t in batch]
+        max_len = max(lengths)
+
+        for index_in_batch, data in enumerate(batch):
+            for _ in range(max_len - lengths[index_in_batch]):
+                data["frames"].append(torch.zeros_like(data["frames"][0]).cuda())
+                data["boxes"].append(torch.zeros_like(data["boxes"][0]).cuda())
+                data["crops"].append(torch.zeros_like(data["crops"][0]).cuda())
+                data["histograms"].append(torch.zeros_like(data["histograms"][0]).cuda())
+                data["segments"].append(torch.zeros_like(data["segments"][0]).cuda())
+                data["positions"].append(torch.zeros_like(data["positions"][0]).cuda())
+
+            data["sequence_len"] = torch.Tensor([lengths[index_in_batch]]).cuda()
+            data["frames"] = torch.stack(data["frames"]).cuda()
+            data["boxes"] = torch.stack(data["boxes"]).cuda()
+            data["crops"] = torch.stack(data["crops"]).cuda()
+            data["histograms"] = torch.stack(data["histograms"]).cuda()
+            data["segments"] = torch.stack(data["segments"]).cuda()
+            data["positions"] = torch.stack(data["positions"]).cuda()
+
+        ret = {}
+        for data in enumerate(batch):
+            ret.update({"sequence_len": torch.stack(data["sequence_len"]).to(dtype=torch.float32).cuda()})
+            ret.update({"frames": torch.stack(data["frames"]).to(dtype=torch.float32).cuda()})
+            ret.update({"boxes": torch.stack(data["boxes"]).to(dtype=torch.float32).cuda()})
+            ret.update({"crops": torch.stack(data["crops"]).to(dtype=torch.float32).cuda()})
+            ret.update({"histograms": torch.stack(data["histograms"]).to(dtype=torch.float32).cuda()})
+            ret.update({"segments": torch.stack(data["segments"]).to(dtype=torch.float32).cuda()})
+            ret.update({"positions": torch.stack(data["positions"]).to(dtype=torch.float32).cuda()})
+
+        ret["frames"] = ret["frames"] / 255.
+        ret["crops"] = ret["crops"] / 255.
+        ret["segments"] = ret["segments"] / 255.
+
+        ret["histograms"] = ret["histograms"] / 2025. # <---- why 2025???
+
+        return ret
+
+    def seed_worker(self, worker_id):
+        worker_seed = self.seed + worker_id
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
 
 # def collate_fn(batch):
 #     # if isinstance(batch, BBoxList):
