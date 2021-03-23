@@ -65,6 +65,7 @@ def train(args):
 
     # load model, loss, optimizer
     model = CEModel(cfg=cfg).cuda()
+    model.train()
     loss_model = get_loss_model(cfg)
 
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
