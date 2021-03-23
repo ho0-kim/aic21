@@ -70,9 +70,9 @@
     },
 
     "train":{
-        "num_epochs" : 100,
-        "batch_size" : 5,
-        "num_workers" : 1
+        "num_epochs" : 101,
+        "batch_size" : 10,
+        "num_workers" : 5
     },
 
     "seed" : 777

@@ -137,19 +137,15 @@ class CEModel(nn.Module):
         self.vid_bert = VidBertModel(self.cfg_model["vid_bert_params"])
 
     def forward(self, input):
+        return {
+            'vid_embds' : compute_vid_embds(input),
+            'txt_embds' : compute_txt_embds(input["nl"]),
+            'label' : input["label"]
+        }
 
+    def compute_vid_embds(self, input):
         batch_size = input["frames"].shape[0]
         seq_full_len = input["frames"].shape[1]
-
-        # print(f'input type {type(input)}')
-        # print(f'input[frames] shape {input["frames"].shape}')
-        # print(f'input[frames] type {type(input["frames"])}')
-        # print(f'input[segments] shape {input["segments"].shape}')
-        # print(f'input[crops] shape {input["crops"].shape}')
-        # print(f'input[histograms] shape {input["histograms"].shape}')
-        # print(f'input[boxes] shape {input["boxes"].shape}')
-        # print(f'input[positions] shape {input["positions"].shape}')
-        # print(f'input[sequence_len] shape {input["sequence_len"].shape}')
 
         ### feature embedding (= frames, seg, cropped, positions, etc)
         
@@ -229,9 +225,12 @@ class CEModel(nn.Module):
             vid_embds = last_layer[:, 0].unsqueeze_(1)
         # print(f'video embedding shape {vid_embds.shape}')
 
+        return vid_embds
+
+    def compute_txt_embds(self, queries):
         # Text Embedding
         txt_embd_list = []
-        for minibatch in input["nl"]:
+        for minibatch in queries:
             token = self.txt_tokenizer.batch_encode_plus(minibatch,
                                         max_length=128,
                                         padding='longest',
@@ -248,12 +247,7 @@ class CEModel(nn.Module):
         txt_embds = torch.stack(txt_embd_list).cuda()
         # print(f'text embedding shape {txt_embds.shape}')
 
-        return {
-            'vid_embds' : vid_embds,
-            'txt_embds' : txt_embds,
-            'label' : input["label"]
-        }
-
+        return txt_embds
 
     def compute_similarity(self, vid_embds, txt_embds):
         if self.cfg["loss"]["type"] == "BinaryCrossEntropy":
@@ -278,12 +272,13 @@ class CEModel(nn.Module):
                 sims = torch.stack(sims).squeeze()
         return sims
 
-    def compute_similarity_for_eval(self, input):
-        o = self.forward(input)
+    def compute_similarity_for_eval(self, track, queries):
+        vid_embds = self.compute_vid_embds(track)
+        txt_embds = self.compute_txt_embds(queries)
         if self.cfg["loss"]["type"] == "BinaryCrossEntropy":
-            return self.compute_similarity(o["vid_embds"], o["txt_embds"]).squeeze()
+            return self.compute_similarity(vid_embds, txt_embds).squeeze()
         else:   # For MaxMarginRankingLoss
-            s = self.compute_similarity(o["vid_embds"], o["txt_embds"])
+            s = self.compute_similarity(vid_embds, txt_embds)
             return torch.diag(s)
 
 def get_optimizer(cfg, params):
