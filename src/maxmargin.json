@@ -49,7 +49,7 @@
     },
 
     "loss":{
-        "type": "BinaryCrossEntropy",
+        "type": "MaxMarginRankingLoss",
         "args": {
             "margin": 0.05,
             "fix_norm": true
@@ -58,7 +58,7 @@
 
     "optimizer":{
         "type": "adam",
-        "lr": 5e-04,
+        "lr": 5e-05,
         "weight_decay": 0,
         "momentum": 0.9
     },   

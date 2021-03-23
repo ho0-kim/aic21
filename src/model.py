@@ -30,6 +30,7 @@ class ReduceDim(nn.Module):
 class CEModel(nn.Module):
     def __init__(self, cfg):
         super().__init__()
+        self.cfg = cfg
         self.cfg_model = cfg["model"]
         self.cfg_data = cfg["data"]
 
@@ -255,7 +256,7 @@ class CEModel(nn.Module):
 
 
     def compute_similarity(self, vid_embds, txt_embds):
-        if self.cfg_model["similiarity_method"] == "pairwise":
+        if self.cfg["loss"]["type"] == "BinaryCrossEntropy":
             if self.cfg_model["use_token_type"]:
                 pass
             else:

@@ -77,6 +77,7 @@ def train():
     time_start = time.time()
     logger.debug(f'trainig start')
     for e in range(cfg["train"]["num_epochs"]):
+        model.train()
         b = 0
         time_e_start = time.time()
         losses = 0
@@ -105,7 +106,7 @@ def train():
                                 f' (full) {float2timeformat(elapse_f)}'
             logger.debug(msg)
             print(msg)
-            csv_writer.writerow([e+1, b, loss.numpy()])
+            csv_writer.writerow([e+1, b, loss.cpu().detach().numpy()])
         msg = f'Epoch : {e+1}  Average Loss : {losses / num_batch}' + \
                     f' Elapse time : (epoch) {float2timeformat(elapse_e)}' + \
                                 f' (full) {float2timeformat(elapse_f)}'

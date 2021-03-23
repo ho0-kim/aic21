@@ -15,6 +15,7 @@ class CityFlowNLDataset(Dataset):
         Dataset for training.
         :param data_cfg: CfgNode for CityFlow NL.
         """
+        self.cfg = cfg
         self.seed = cfg["seed"]
         self.data_cfg = cfg["data"]
         with open(self.data_cfg["train_json"]) as f:
@@ -33,6 +34,9 @@ class CityFlowNLDataset(Dataset):
             label = 1
         else:
             label = 0
+
+        if self.cfg["loss"]["type"] == "MaxMarginRankingLoss":
+            label = 1
 
         track = self.list_of_tracks[index]
         if label == 0:
