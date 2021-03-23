@@ -3,6 +3,7 @@ import time
 import datetime
 import csv
 import logging
+import argparse
 
 import torch
 from torch.utils.data import DataLoader, RandomSampler
@@ -20,7 +21,7 @@ def float2timeformat(seconds):
     h = seconds // 3600
     return "%2d:%2d:%2f" % (h, m, s)
 
-def train():
+def train(config_file):
     # Set logger
     log_file = datetime.datetime.now().strftime("%y%m%d_%H%M%S_%f")
     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', 
@@ -36,7 +37,7 @@ def train():
 
 
     # Read configuation json file
-    config_json = "src/config.json"
+    config_json = config_file
 
     with open(config_json) as f:
         cfg = json.load(f)
@@ -123,4 +124,10 @@ def train():
 
 if __name__ == '__main__':
     print(f'running script {__file__}')
-    train()
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--config', required=True)
+    args = parser.parse_args()
+
+    train(args.config)
