@@ -21,7 +21,7 @@ def float2timeformat(seconds):
     h = seconds // 3600
     return "%2d:%2d:%2f" % (h, m, s)
 
-def train(config_file):
+def train(args):
     # Set logger
     log_file = datetime.datetime.now().strftime("%y%m%d_%H%M%S_%f")
     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', 
@@ -37,7 +37,7 @@ def train(config_file):
 
 
     # Read configuation json file
-    config_json = config_file
+    config_json = args.config
 
     with open(config_json) as f:
         cfg = json.load(f)
@@ -72,12 +72,19 @@ def train(config_file):
 
     logger.debug(f'configuration file : {config_json}')
 
+    epoch_start = 0
+    if args.pretrained != None:
+        ckpt = torch.load(args.pretrained)
+        model.load_state_dict(ckpt['model'])
+        optimizer.load_state_dict(ckpt['optimizer'])
+        epoch_start = ckpt['epoch']
+
     data_size = len(dataset)
     num_batch = int(data_size / cfg["train"]["batch_size"])
 
     time_start = time.time()
     logger.debug(f'trainig start')
-    for e in range(cfg["train"]["num_epochs"]):
+    for e in range(epoch_start, cfg["train"]["num_epochs"]):
         model.train()
         b = 0
         time_e_start = time.time()
@@ -127,7 +134,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--config', required=True)
+    parser.add_argument('-c', '--config', required=True)
+    parser.add_argument('-p', '--pretrained', default=None)
     args = parser.parse_args()
 
-    train(args.config)
+    train(args=args)
