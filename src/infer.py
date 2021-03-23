@@ -30,7 +30,7 @@ def infer():
     with open(config_json, "r") as f:
         cfg = json.load(f)
 
-    with open(cfg["test_query_json"], "r") as f:
+    with open(cfg["data"]["test_query_json"], "r") as f:
         queries = json.load(f)
 
     # save and load files(??)
@@ -54,11 +54,11 @@ def infer():
 
     # load data
     dataset = CityFlowNLInferenceDataset(cfg)
-    model = CEModel(cfg=cfg)
     ckpt = torch.load(cfg["eval"]["restore_from"],
-                      map_location=lambda storage, loc: storage.cpu())  # need to check if correct
-    restore_kv = {key.replace("module.", ""):ckpt["state_dict"][key] for key in ckpt["state_dict"].keys()} # need to check if correct
-    model.load_state_dict(restore_kv, strict=True)
+                      map_location=lambda storage, loc: storage.cpu())
+    model = CEModel(cfg=cfg)
+    model.load_state_dict(ckpt['model'], strict=True)
+    model.eval()
     model = model.cuda()
 
     #eval_sampler = RandomSampler(dataset)
@@ -72,15 +72,24 @@ def infer():
         print(f'Evaluate query {query_id}')
         track_score = dict()
         q = queries[query_id]
+        q = [q for i in range(cfg["eval"]["batch_size"])]
+
+        count = 0       # (temporary code)
+
         for track in dataloader:
-            lang_embeds = model.compute_lang_embed(q)
-            s = model.compute_similarity_on_frame(track, lang_embeds)
+            s = model.compute_similarity_for_eval(track, q)
+            s = s.detach()
             track_id = track["id"][0]
-            track_score[track_id] = s
+            track_score[track_id] = s.item()
+
+            if count % 10 == 9:         # (temporary code)
+                break                   # (temporary code)
+            count += 1                  # (temporary code)
+
         top_tracks = sorted(track_score, key=track_score.get, reverse=True)
-        with open(os.path.join(cfg["log"], "w")) as f:
+        with open(os.path.join(cfg["eval"]["log"], "%s.log" % query_id), "w") as f:
             for track in top_tracks:
-                f.write(f'{track}')
+                f.write(f'{track}\n')
     print(f'finished.')
 
 if __name__ == '__main__':

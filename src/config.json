@@ -76,10 +76,11 @@
     },
 
     "eval": {
-        "restore_from"  : "experiments/checkpoints/",
-        "batch_size"    : 5,
+        "restore_from"  : "./210321_210735_575568_epoch65.pt",
+        "batch_size"    : 1,
         "num_workers"   : 3,
-        "continue"      : ""
+        "continue"      : "",
+        "log"           : "./log/"
     },
 
     "seed" : 777

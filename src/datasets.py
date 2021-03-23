@@ -195,7 +195,7 @@ class CityFlowNLInferenceDataset(Dataset):
             skip = 1
 
         for frame_idx, frame_path in enumerate(track["frames"]):
-            if i % skip == 0:   # skip frames
+            if frame_idx % skip == 0:   # skip frames
                 frame = cv2.imread(frame_path)
                 frm_h, frm_w, _ = frame.shape
                 box = track["boxes"][frame_idx]
@@ -215,7 +215,7 @@ class CityFlowNLInferenceDataset(Dataset):
                 frame = cv2.resize(frame, dsize=tuple(self.data_cfg["frame_size"]))
                 segmented = cv2.resize(segmented, dsize = tuple(self.data_cfg["frame_size"]))
 
-                box[0] = box[0] / frm_w     # <---- need to check pairing width and height
+                box[0] = box[0] / frm_w     # 1, 3: related to height // 0, 2: related to width
                 box[2] = box[2] / frm_w
                 box[1] = box[1] / frm_h
                 box[3] = box[3] / frm_h
@@ -260,14 +260,14 @@ class CityFlowNLInferenceDataset(Dataset):
             data["positions"] = torch.stack(data["positions"]).cuda()
 
         ret = {}
-        for data in enumerate(batch):
-            ret.update({"sequence_len": torch.stack(data["sequence_len"]).to(dtype=torch.float32).cuda()})
-            ret.update({"frames": torch.stack(data["frames"]).to(dtype=torch.float32).cuda()})
-            ret.update({"boxes": torch.stack(data["boxes"]).to(dtype=torch.float32).cuda()})
-            ret.update({"crops": torch.stack(data["crops"]).to(dtype=torch.float32).cuda()})
-            ret.update({"histograms": torch.stack(data["histograms"]).to(dtype=torch.float32).cuda()})
-            ret.update({"segments": torch.stack(data["segments"]).to(dtype=torch.float32).cuda()})
-            ret.update({"positions": torch.stack(data["positions"]).to(dtype=torch.float32).cuda()})
+        ret["id"] = [b["id"] for b in batch]
+        ret["sequence_len"] = torch.stack([data["sequence_len"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["frames"] = torch.stack([data["frames"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["boxes"] = torch.stack([data["boxes"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["crops"] = torch.stack([data["crops"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["histograms"] = torch.stack([data["histograms"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["segments"] = torch.stack([data["segments"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["positions"] = torch.stack([data["positions"] for data in batch]).to(dtype=torch.float32).cuda()
 
         ret["frames"] = ret["frames"] / 255.
         ret["crops"] = ret["crops"] / 255.
