@@ -278,6 +278,14 @@ class CEModel(nn.Module):
                 sims = torch.stack(sims).squeeze()
         return sims
 
+    def compute_similarity_for_eval(self, input):
+        o = self.forward(input)
+        if self.cfg["loss"]["type"] == "BinaryCrossEntropy":
+            return self.compute_similarity(o["vid_embds"], o["txt_embds"]).squeeze()
+        else:   # For MaxMarginRankingLoss
+            s = self.compute_similarity(o["vid_embds"], o["txt_embds"])
+            return torch.diag(s)
+
 def get_optimizer(cfg, params):
     if cfg["optimizer"]["type"] == "adam":
         optimizer = torch.optim.Adam(params, 
@@ -342,6 +350,9 @@ if __name__ == '__main__':
             similarity = model.compute_similarity(out["vid_embds"], out["txt_embds"])
             loss = loss_model(similarity, out["label"])
             print(f'Eposch : {e}  Batch : {b} Loss : {loss}')
+
+            sim = model.compute_similarity_for_eval(batch)
+            print(f'similarity for eval: {sim}')
 
             loss.backward()
             optimizer.step()
