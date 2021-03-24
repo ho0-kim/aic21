@@ -4,6 +4,7 @@ import datetime
 import csv
 import logging
 import argparse
+import os
 
 import torch
 from torch.utils.data import DataLoader, RandomSampler
@@ -22,16 +23,19 @@ def float2timeformat(seconds):
     return "%2d:%2d:%2f" % (h, m, s)
 
 def train(args):
+    os.makedirs('logs', exist_ok=True)
+    os.makedirs('ckpts', exist_ok=True)
+
     # Set logger
-    log_file = datetime.datetime.now().strftime("%y%m%d_%H%M%S_%f")
+    log_file = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', 
                         datefmt='%d-%b-%y %H:%M:%S',
-                        filename=f'{log_file}.log',
+                        filename=f'logs/{log_file}.log',
                         filemode='w')
     logger = logging.getLogger(__name__)
 
     # Set CSV log file
-    csv_file = open(f'{log_file}.csv', 'w')
+    csv_file = open(f'logs/{log_file}.csv', 'w')
     csv_writer = csv.writer(csv_file, delimiter=',')
     csv_writer.writerow(['epoch', 'batch', 'loss'])
 
@@ -68,8 +72,8 @@ def train(args):
     model.train()
     loss_model = get_loss_model(cfg)
 
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = get_optimizer(cfg, trainable_params)
+    # trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = get_optimizer(cfg, model.parameters())
 
     logger.debug(f'configuration file : {config_json}')
 
@@ -128,7 +132,7 @@ def train(args):
                 'epoch': e,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict()
-            }, log_file+f'_epoch{e}.pt')
+            }, f'ckpts/{log_file}_epoch{e}.pt')
 
 if __name__ == '__main__':
     print(f'running script {__file__}')
