@@ -72,7 +72,7 @@ def infer(args):
     time_start = time.time()
     results_dict = {}
     for idx, query_id in enumerate(queries):
-        print(f'Evaluate query {query_id}')
+        print(f'Evaluate query {idx+1} {query_id}')
         time_eval = time.time()
 
         track_score = dict()
