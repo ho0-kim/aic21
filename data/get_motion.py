@@ -31,6 +31,7 @@ def get_diff_from_prev_val(val_list):
     for it in val_list[1:]:
         val = (it[0] - prev[0], it[1] - prev[1])
         diff.append(val)
+        prev = it
     return diff
 
 def get_speed(vec_list):
@@ -66,6 +67,8 @@ def main(args):
         with open(path_calibration,'r') as file:
             homography = file.readline()
             h_matrix = homography_matrix(homography)
+            h_matrix_inv = np.zeros((3,3), np.float32)
+            cv2.invert(h_matrix, h_matrix_inv)
 
         ## h_matrix check - image warp test
         #image = cv2.imread(frames[0])
@@ -78,7 +81,8 @@ def main(args):
         for box in boxes:
             pos = pos_on_ground(box)
             #pos = h_matrix.dot(pos.transpose())
-            pos_list.append((pos[0],pos[1]))
+            pos = h_matrix_inv.dot(pos.transpose())
+            pos_list.append((pos[0]/pos[2],pos[1]/pos[2]))
 
         vec_list = get_diff_from_prev_val(pos_list)
         if len(vec_list) == 0:
