@@ -1,0 +1,59 @@
+{
+    "data":{
+        "train_json" : "../../data/train-tracks.json",
+        "test_query_json" : "../../data/test-queries.json",
+        "test_track_json" : "../../data/test-tracks.json",
+
+        "cityflow_path" : "../../",
+
+        "modalities" : ["frames",
+                        "crops",
+                        "boxes"],
+
+        "positive_threshold" : 0.5,
+        "crop_size" : [128, 128],
+        "frame_size" : [256, 256],
+
+        "max_seq_len" : 50
+    },
+
+    "loss":{
+        "type": "CrossEntropy",
+        "args": {
+            "margin": 0.05,
+            "fix_norm": true
+        }
+    },
+
+    "optimizer":{
+        "type": "adam",
+        "lr": 1e-04,
+        "weight_decay": 0,
+        "momentum": 0.9,
+        "step_size" : 70,
+        "gamma" : 0.1
+    },   
+
+    "lr_scheduler": {
+        "type": "StepLR",
+        "step_size": 1,
+        "gamma": 0.95
+    },
+
+    "train":{
+        "num_epochs" : 10000000,
+        "batch_size" : 32,
+        "num_workers" : 2,
+        "loss_clip_value" : 10.0
+    },
+
+    "eval": {
+        "restore_from"  : "./maxmargin_epoch70.pt",
+        "batch_size"    : 1,
+        "num_workers"   : 3,
+        "continue"      : "",
+        "log"           : "./log/"
+    },
+
+    "seed" : 777
+}
