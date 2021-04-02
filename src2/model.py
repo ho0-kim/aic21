@@ -60,6 +60,28 @@ class CarColor(nn.Module):
         loss /= len(track['crop'])
         return loss
 
+    def compute_color_embeds(self, query):
+        return getColorProb(query)
+
+    def compute_similarity_on_frame(self, tracks, query): # ===================== on debugging ========================== #
+        loss = [0.] * len(tracks['crops'])
+
+        with torch.no_grad():
+            for t in tracks['crops']:
+                l = 0.
+                out = self.forward(t)
+                _, pre = torch.max(out, 1) # need to calculate by sequence_len
+                percentage = torch.nn.functional.softmax(out, dim=1)[0]
+
+                color_emb = self.compute_color_embeds(query)
+                for k, v in color_emb.items():
+                    target = torch.LongTensor([k]*len(t)).cuda()
+                    #[color_emb for i in range(size)]
+                    l += self.loss_model(out, target) * v
+                loss.append(l)
+
+        return loss                                         # ===================== on debugging ========================== #
+
 class CarType(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -94,6 +116,12 @@ class CarType(nn.Module):
             loss += l
         loss /= len(track['crop'])
         return loss
+
+    def compute_color_embeds(self, queries):
+        return getTypeProb(queries)
+
+    def compute_similarity_on_frame(self, tracks, queries):
+        return 1
 
 
 

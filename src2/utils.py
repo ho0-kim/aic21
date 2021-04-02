@@ -4,6 +4,7 @@ import re
 from stop_words import ENGLISH_STOP_WORDS as ESW
 from car_colors import COLORS
 from car_types import TYPES
+from collections import Counter
 
 def tokenize(sentence):
     tokens = []
@@ -70,6 +71,50 @@ def getTotalColorLabel():
 
 def getTotalTypeLabel():
     return len(TYPES)
+
+def getColorProb(nls):
+    colors = list()
+    color_prob = dict()
+    color_count = 0
+
+    for s in nls:
+        tokens = tokenize(s)
+        color, color_label = getColorLabel(tokens)
+        colors.append(color_label)
+
+        if color_label >= 0:
+            color_count += 1
+
+    assert (color_count >= 0)
+
+    color_counter = Counter(colors)
+    for color, count in color_counter.items():
+        if color >= 0:
+            color_prob.update({color: count / color_count})
+
+    return color_prob
+
+def getTypeProb(nls):
+    types = list()
+    type_prob = dict()
+    type_count = 0
+
+    for s in nls:
+        tokens = tokenize(s)
+        type, type_label = getTypeLabel(tokens)
+        types.append(type_label)
+
+        if type_label >= 0:
+            type_count += 1
+
+    assert (type_count >= 0)
+
+    type_counter = Counter(types)
+    for type, count in type_counter.items():
+        if type >= 0:
+            type_prob.update({type: count / type_count})
+
+    return type_prob
 
 def main():
     file_path = os.path.join('../../data/train-tracks.json')

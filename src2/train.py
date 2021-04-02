@@ -152,8 +152,7 @@ def train(args):
                   f' (full) {float2timeformat(elapse_f)}'
             logger.debug(msg)
             print(msg)
-            csv_writer.writerow([e + 1, b, loss_color.cpu().detach().numpy()])
-            csv_writer.writerow([e + 1, b, loss_type.cpu().detach().numpy()])
+            csv_writer.writerow([e + 1, b, loss_color.cpu().detach().numpy(), loss_type.cpu().detach().numpy()])
 
         exp_lr_scheduler_color.step()
         exp_lr_scheduler_type.step()
@@ -164,7 +163,6 @@ def train(args):
         print(msg)
         logger.debug(msg)
 
-        # ----------------------------------??
         # Save model
         if e % 5 == 0:
             torch.save({
@@ -174,7 +172,6 @@ def train(args):
                 'model_type': model_type.state_dict(),
                 'optimizer_type': optimizer_type.state_dict()
             }, f'ckpts/{log_file}_epoch{e}.pt')
-        # ----------------------------------??
 
 if __name__ == '__main__':
     print(f'running script {__file__}')

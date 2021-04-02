@@ -48,9 +48,9 @@
     },
 
     "eval": {
-        "restore_from"  : "./maxmargin_epoch70.pt",
-        "batch_size"    : 1,
-        "num_workers"   : 3,
+        "restore_from"  : "ckpts/210401_193121_epoch910.pt",
+        "batch_size"    : 4,
+        "num_workers"   : 1,
         "continue"      : "",
         "log"           : "./log/"
     },
