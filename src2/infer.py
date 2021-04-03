@@ -73,16 +73,14 @@ def infer(args):
 
         track_score = dict()
         q = queries[query_id]
+        colors = model_color.compute_color_list(q)
+        types = model_type.compute_type_list(q)
 
         for track in dataloader:
-            score_color = model_color.compute_similarity_on_frame(track, q)
-            score_color = score_color.detach()
+            score_color = model_color.compute_similarity_on_frame(track, colors)
+            score_type = model_type.compute_similarity_on_frame(track, types)
 
-            score_type = model_type.compute_similarity_on_frame(track, q)
-            score_type = score_type.detach()
-
-            for i in range(len(track["id"])):
-                track_id = track["id"][i]
+            for i, track_id in enumerate(track["id"]):
                 track_score[track_id] = score_color[i] + score_type[i]
 
         top_tracks = {k: v for k, v in sorted(track_score.items(), key=lambda item: item[1], reverse=True)}
@@ -90,7 +88,7 @@ def infer(args):
         with open(os.path.join(cfg["eval"]["log"], "%s.log" % query_id), "w") as f:
             for k, v in top_tracks.items():
                 f.write(f'{k} {v}\n')
-        print(type(top_tracks.keys()))
+
         results_dict[query_id] = list(top_tracks.keys())
         print(f'Elapse time: {time.time() - time_eval}')
     with open(os.path.join(cfg["eval"]["log"], f"result{time.time()}.json"), "w") as f:

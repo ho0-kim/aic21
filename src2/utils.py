@@ -72,9 +72,8 @@ def getTotalColorLabel():
 def getTotalTypeLabel():
     return len(TYPES)
 
-def getColorProb(nls):
+def getColorList(nls):
     colors = list()
-    color_prob = dict()
     color_count = 0
 
     for s in nls:
@@ -86,17 +85,10 @@ def getColorProb(nls):
             color_count += 1
 
     assert (color_count >= 0)
+    return colors
 
-    color_counter = Counter(colors)
-    for color, count in color_counter.items():
-        if color >= 0:
-            color_prob.update({color: count / color_count})
-
-    return color_prob
-
-def getTypeProb(nls):
+def getTypeList(nls):
     types = list()
-    type_prob = dict()
     type_count = 0
 
     for s in nls:
@@ -108,13 +100,7 @@ def getTypeProb(nls):
             type_count += 1
 
     assert (type_count >= 0)
-
-    type_counter = Counter(types)
-    for type, count in type_counter.items():
-        if type >= 0:
-            type_prob.update({type: count / type_count})
-
-    return type_prob
+    return types
 
 def main():
     file_path = os.path.join('../../data/train-tracks.json')

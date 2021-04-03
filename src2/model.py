@@ -60,27 +60,24 @@ class CarColor(nn.Module):
         loss /= len(track['crop'])
         return loss
 
-    def compute_color_embeds(self, query):
-        return getColorProb(query)
+    def compute_color_list(self, query):
+        return getColorList(query)
 
-    def compute_similarity_on_frame(self, tracks, query): # ===================== on debugging ========================== #
-        loss = [0.] * len(tracks['crops'])
-
+    def compute_similarity_on_frame(self, tracks, colors):
         with torch.no_grad():
-            for t in tracks['crops']:
-                l = 0.
+            scores = list()
+            for i, t in enumerate(tracks['crops']):
+                score = 0.
                 out = self.forward(t)
-                _, pre = torch.max(out, 1) # need to calculate by sequence_len
-                percentage = torch.nn.functional.softmax(out, dim=1)[0]
+                actual_out = out[:tracks['sequence_len'][i]]
+                #_, pre = torch.max(actual_out, 1)
+                percentage = nn.functional.softmax(actual_out, dim=1)[0]
+                percentage = percentage.detach().to('cpu').numpy()
 
-                color_emb = self.compute_color_embeds(query)
-                for k, v in color_emb.items():
-                    target = torch.LongTensor([k]*len(t)).cuda()
-                    #[color_emb for i in range(size)]
-                    l += self.loss_model(out, target) * v
-                loss.append(l)
-
-        return loss                                         # ===================== on debugging ========================== #
+                for c in colors:
+                    score += percentage[c]
+                scores.append(score)
+        return scores
 
 class CarType(nn.Module):
     def __init__(self, cfg):
@@ -117,11 +114,24 @@ class CarType(nn.Module):
         loss /= len(track['crop'])
         return loss
 
-    def compute_color_embeds(self, queries):
-        return getTypeProb(queries)
+    def compute_type_list(self, query):
+        return getTypeList(query)
 
-    def compute_similarity_on_frame(self, tracks, queries):
-        return 1
+    def compute_similarity_on_frame(self, tracks, types):
+        with torch.no_grad():
+            scores = list()
+            for i, t in enumerate(tracks['crops']):
+                score = 0.
+                out = self.forward(t)
+                actual_out = out[:tracks['sequence_len'][i]]
+                #_, pre = torch.max(actual_out, 1)
+                percentage = nn.functional.softmax(actual_out, dim=1)[0]
+                percentage = percentage.detach().to('cpu').numpy()
+
+                for tp in types:
+                    score += percentage[tp]
+                scores.append(score)
+        return scores
 
 
 

@@ -159,13 +159,13 @@ class CityFlowNLInferenceDataset(Dataset):
                 #data["frames"].append(torch.zeros_like(data["frames"][0]).cuda())
                 data["crops"].append(torch.zeros_like(data["crops"][0]).cuda())
 
-            data["sequence_len"] = torch.Tensor([lengths[index_in_batch]]).cuda()
+            data["sequence_len"] = lengths[index_in_batch]
             #data["frames"] = torch.stack(data["frames"]).cuda()
             data["crops"] = torch.stack(data["crops"]).cuda()
 
         ret = {}
-        ret["id"] = [b["id"] for b in batch]
-        ret["sequence_len"] = torch.stack([data["sequence_len"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["id"] = [data["id"] for data in batch]
+        ret["sequence_len"] = [data["sequence_len"] for data in batch]
         #ret["frames"] = torch.stack([data["frames"] for data in batch]).to(dtype=torch.float32).cuda()
         ret["crops"] = torch.stack([data["crops"] for data in batch]).to(dtype=torch.float32).cuda()
 
