@@ -122,6 +122,7 @@ def train(args):
             # 1. train car color model
             optimizer_color.zero_grad()
             loss_color = model_color.compute_loss(batch)
+            #loss_2 = model_color.compute_loss_by_one_hot_enc(batch)
 
             if not (math.isnan(loss_color.data.item())
                     or math.isinf(loss_color.data.item())

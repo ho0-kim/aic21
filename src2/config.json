@@ -17,14 +17,6 @@
         "max_seq_len" : 50
     },
 
-    "loss":{
-        "type": "CrossEntropy",
-        "args": {
-            "margin": 0.05,
-            "fix_norm": true
-        }
-    },
-
     "optimizer":{
         "type": "adam",
         "lr": 1e-04,
@@ -41,10 +33,11 @@
     },
 
     "train":{
-        "num_epochs" : 10000000,
-        "batch_size" : 32,
-        "num_workers" : 2,
-        "loss_clip_value" : 10.0
+        "num_epochs" : 10000,
+        "batch_size" : 4,
+        "num_workers" : 1,
+        "loss_clip_value" : 10.0,
+        "loss_calculator" : "cross_entropy_by_ans_prob_enc"
     },
 
     "eval": {

@@ -1,12 +1,22 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision.models import resnet50
 import numpy as np
 from utils import *
 
-
 def get_loss_model(cfg):
-    return nn.CrossEntropyLoss().cuda()
+        return nn.CrossEntropyLoss().cuda()
+
+def cross_entropy_with_multi_targets(input_probs, targets):
+    loss = 0.
+    count = 0
+    for i in input_probs:
+        for t in targets:
+            loss += torch.log(torch.sum(torch.exp(i))) - i[t]
+            count += 1
+    loss = loss / count
+    return loss
 
 def get_optimizer(cfg, params):
     if cfg["optimizer"]["type"] == "adam":
@@ -35,18 +45,17 @@ class CarColor(nn.Module):
         num_class = getTotalColorLabel()
         self.resnet50.fc = nn.Linear(num_features, num_class) # length of color classes
         self.loss_model = get_loss_model(self.cfg)
-        '''
-        state_dict = torch.load(self.model_cfg.RESNET_CHECKPOINT,
-                                map_location=lambda storage, loc: storage.cpu())
-        del state_dict["fc.weight"]
-        del state_dict["fc.bias"]
-        self.resnet50.load_state_dict(state_dict, strict=False)
-        '''
+
+        if self.cfg["train"]["loss_calculator"] == "cross_entropy_by_one_hot_enc":
+            self.compute_loss = self.compute_loss_by_one_hot_enc
+
+        elif self.cfg["train"]["loss_calculator"] == "cross_entropy_by_ans_prob_enc":
+            self.compute_loss = self.compute_loss_by_ans_prob_enc
 
     def forward(self, track):
         return self.resnet50(track)
 
-    def compute_loss(self, track):
+    def compute_loss_by_one_hot_enc(self, track):
         loss = 0.
         out = self.forward(track['crop'])
 
@@ -56,6 +65,18 @@ class CarColor(nn.Module):
             for k, v in track['color'][index].items():
                 target = torch.LongTensor([k]).cuda()
                 l += self.loss_model(o, target) * v
+            loss += l
+        loss /= len(track['crop'])
+        return loss
+
+    def compute_loss_by_ans_prob_enc(self, track):
+        loss = 0.
+        out = self.forward(track['crop'])
+        for index, o in enumerate(out):
+            l = 0.
+            pred = F.log_softmax(o, dim=-1)
+            for k, v in track['color'][index].items():
+                l += pred[k] * -1 * v
             loss += l
         loss /= len(track['crop'])
         return loss
@@ -90,17 +111,17 @@ class CarType(nn.Module):
         num_class = getTotalTypeLabel()
         self.resnet50.fc = nn.Linear(num_features, num_class) # length of model classes
         self.loss_model = get_loss_model(self.cfg)
-        '''
-        state_dict = torch.load(self.model_cfg.RESNET_CHECKPOINT,
-                                map_location=lambda storage, loc: storage.cpu())
-        del state_dict["fc.weight"]
-        del state_dict["fc.bias"]
-        self.resnet50.load_state_dict(state_dict, strict=False)
-        '''
+
+        if self.cfg["train"]["loss_calculator"] == "cross_entropy_by_one_hot_enc":
+            self.compute_loss = self.compute_loss_by_one_hot_enc
+
+        elif self.cfg["train"]["loss_calculator"] == "cross_entropy_by_ans_prob_enc":
+            self.compute_loss = self.compute_loss_by_ans_prob_enc
+
     def forward(self, track):
         return self.resnet50(track)
 
-    def compute_loss(self, track):  # need to check if it's correct !!!!!!!!!!!!!!!!!!!
+    def compute_loss_by_one_hot_enc(self, track):
         loss = 0.
         out = self.forward(track['crop'])
 
@@ -110,6 +131,19 @@ class CarType(nn.Module):
             for k, v in track['type'][index].items():
                 target = torch.LongTensor([k]).cuda()
                 l += self.loss_model(o, target) * v
+            loss += l
+        loss /= len(track['crop'])
+        return loss
+
+    def compute_loss_by_ans_prob_enc(self, track):
+        loss = 0.
+        out = self.forward(track['crop'])
+
+        for index, o in enumerate(out):
+            l = 0.
+            pred = F.log_softmax(o, dim=-1)
+            for k, v in track['type'][index].items():
+                l += pred[k] * -1 * v
             loss += l
         loss /= len(track['crop'])
         return loss
