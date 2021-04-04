@@ -14,7 +14,7 @@
         "crop_size" : [128, 128],
         "frame_size" : [256, 256],
 
-        "max_seq_len" : 50
+        "max_seq_len" : 20
     },
 
     "optimizer":{
@@ -37,7 +37,7 @@
         "batch_size" : 4,
         "num_workers" : 1,
         "loss_clip_value" : 10.0,
-        "loss_calculator" : "cross_entropy_by_ans_prob_enc"
+        "loss_calculator" : "cross_entropy_by_one_hot_enc"
     },
 
     "eval": {

@@ -34,17 +34,28 @@ class CityFlowNLDataset(Dataset):
         Get pairs of NL and cropped frame.
         """
         track = self.list_of_tracks[index]
-
         seq_len = len(track["frames"])
-        frame_index = int(random.uniform(0, seq_len-1))
 
-        frame = cv2.imread(track["frames"][frame_index])
-        box = track["boxes"][frame_index]
-        crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
-        crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))  # d: 128, 128, 3
+        if seq_len > self.data_cfg["max_seq_len"]:
+            seq_len = self.data_cfg["max_seq_len"]
 
-        colors = list()                         # -------------- getColorProb(nls)
-        types = list()                          # -------------- getTypeProb(nls)
+        test_seq = random.sample(range(len(track["frames"])), seq_len) #random sampling without duplicate
+
+        frames = list()
+        crops = list()
+
+        for i in test_seq:
+            frame_idx = i
+            frame = cv2.imread(track["frames"][frame_idx])
+            box = track["boxes"][frame_idx]
+            crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
+            crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))  # d: 128, 128, 3
+
+            frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
+            crops.append(torch.from_numpy(crop).permute([2, 0, 1]).cuda())
+
+        colors = list()
+        types = list()
         color_count = 0
         type_count = 0
         for s in track["nl"]:
@@ -73,20 +84,34 @@ class CityFlowNLDataset(Dataset):
 
         for type, count in type_counter.items():
             if type >= 0:
-                type_prob.update({type: count / type_count})    #================================
-
-        crop = torch.from_numpy(crop).permute([2, 0, 1]).cuda()
+                type_prob.update({type: count / type_count})
 
         dp = {}
-        dp["crop"] = crop
+        dp["frames"] = frames
+        dp["crops"] = crops
         dp["color"] = color_prob
         dp["type"] = type_prob
 
         return dp
 
     def collate_fn(self, batch):
+        # padding for batch
+        lengths = [len(t["frames"]) for t in batch]
+        max_len = max(lengths)
+
+        for index_in_batch, data in enumerate(batch):
+            for _ in range(max_len - lengths[index_in_batch]):
+                # data["frames"].append(torch.zeros_like(data["frames"][0]).cuda())
+                data["crops"].append(torch.zeros_like(data["crops"][0]).cuda())
+
+            data["sequence_len"] = lengths[index_in_batch]
+            # data["frames"] = torch.stack(data["frames"]).cuda()
+            data["crops"] = torch.stack(data["crops"]).cuda()
+
         ret = {}
-        ret["crop"] = torch.stack([b["crop"] for b in batch]).to(dtype=torch.float32).cuda()
+        ret["sequence_len"] = [data["sequence_len"] for data in batch]
+        # ret["frames"] = torch.stack([data["frames"] for data in batch]).to(dtype=torch.float32).cuda()
+        ret["crops"] = torch.stack([b["crops"] for b in batch]).to(dtype=torch.float32).cuda()
         ret["color"] = [b["color"] for b in batch]
         ret["type"] = [b["type"] for b in batch]
         return ret
