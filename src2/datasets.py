@@ -8,6 +8,7 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, dataloader
 from utils import *
+from augmentation import Augmentation
 
 class CityFlowNLDataset(Dataset):
     def __init__(self, cfg):
@@ -18,6 +19,13 @@ class CityFlowNLDataset(Dataset):
         self.cfg = cfg
         self.seed = cfg["seed"]
         self.data_cfg = cfg["data"]
+
+        self.max_seq_len = self.data_cfg["max_seq_len"]
+        self.aug = Augmentation(cfg)
+        self.intentional_aug_len = cfg["data"]["max_seq_len"] // 10
+        assert(self.intentional_aug_len > 0)
+        self.max_org_frame_len = self.max_seq_len - self.intentional_aug_len
+
         with open(self.data_cfg["train_json"]) as f:
             tracks = json.load(f)
         self.list_of_uuids = list(tracks.keys())
@@ -35,23 +43,36 @@ class CityFlowNLDataset(Dataset):
         """
         track = self.list_of_tracks[index]
         seq_len = len(track["frames"])
+        b_all_aug = False
 
-        if seq_len > self.data_cfg["max_seq_len"]:
-            seq_len = self.data_cfg["max_seq_len"]
+        if seq_len > self.max_org_frame_len:
+            seq_len = self.max_org_frame_len
+            b_all_aug = True
 
         test_seq = random.sample(range(len(track["frames"])), seq_len) #random sampling without duplicate
 
-        frames = list()
+        #frames = list()
         crops = list()
+        raw_crops = list()
 
         for i in test_seq:
             frame_idx = i
             frame = cv2.imread(track["frames"][frame_idx])
             box = track["boxes"][frame_idx]
             crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
-            crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))  # d: 128, 128, 3
+            #frames.append(frame)
+            raw_crops.append(crop)
 
-            frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
+        # data augmentation
+        aug_len = self.max_seq_len - seq_len
+        for i in range(aug_len):
+            index = random.randint(0, seq_len - 1)
+            crop = self.aug.random_augmentation(raw_crops[index], b_all_aug)
+            raw_crops.append(crop)
+
+        for i in range(self.max_seq_len):
+            crop = cv2.resize(raw_crops[i], dsize=tuple(self.data_cfg["crop_size"]))  # d: 128, 128, 3
+            #frames.append(torch.from_numpy(frames[i]).permute([2, 0, 1]).cuda())
             crops.append(torch.from_numpy(crop).permute([2, 0, 1]).cuda())
 
         colors = list()
@@ -87,7 +108,7 @@ class CityFlowNLDataset(Dataset):
                 type_prob.update({type: count / type_count})
 
         dp = {}
-        dp["frames"] = frames
+        #dp["frames"] = frames
         dp["crops"] = crops
         dp["color"] = color_prob
         dp["type"] = type_prob
@@ -96,14 +117,11 @@ class CityFlowNLDataset(Dataset):
 
     def collate_fn(self, batch):
         # padding for batch
-        lengths = [len(t["frames"]) for t in batch]
-        max_len = max(lengths)
+        lengths = [len(t["crops"]) for t in batch]
+        max_len = max(lengths) # it's possible that max_len is different from self.max_seq_len
 
         for index_in_batch, data in enumerate(batch):
-            for _ in range(max_len - lengths[index_in_batch]):
-                # data["frames"].append(torch.zeros_like(data["frames"][0]).cuda())
-                data["crops"].append(torch.zeros_like(data["crops"][0]).cuda())
-
+            assert (max_len == lengths[index_in_batch])
             data["sequence_len"] = lengths[index_in_batch]
             # data["frames"] = torch.stack(data["frames"]).cuda()
             data["crops"] = torch.stack(data["crops"]).cuda()
