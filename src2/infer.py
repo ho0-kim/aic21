@@ -89,7 +89,7 @@ def infer(args):
                 motion_score = np.dot(motion_nl, motion_track)
                 motion_weight = [.8, .8, .0, .0, .6] #weight for right/left/spd up/spd down/stop
                 motion_score = np.dot(motion_score, motion_weight)
-                track_score[track_id] += motion_score
+                track_score[track_id] += np.sum(motion_score)
 
         top_tracks = {k: v for k, v in sorted(track_score.items(), key=lambda item: item[1], reverse=True)}
 
