@@ -15,6 +15,8 @@ import numpy as np
 import random
 import os
 
+from utils import motion_detection, motion_calculation
+
 def infer(args):
     # Read configuation json file
     config_json = args.config
@@ -75,6 +77,7 @@ def infer(args):
         q = queries[query_id]
         colors = model_color.compute_color_list(q)
         types = model_type.compute_type_list(q)
+        motion_nl = motion_detection(q) # get bit vector which explains a track behavior
 
         for track in dataloader:
             score_color = model_color.compute_similarity_on_frame(track, colors)
@@ -82,6 +85,11 @@ def infer(args):
 
             for i, track_id in enumerate(track["id"]):
                 track_score[track_id] = score_color[i] + score_type[i]
+                motion_track = motion_calculation(track_id)
+                motion_score = np.dot(motion_nl, motion_track)
+                motion_weight = [.8, .8, .0, .0, .6] #weight for right/left/spd up/spd down/stop
+                motion_score = np.dot(motion_score, motion_weight)
+                track_score[track_id] += motion_score
 
         top_tracks = {k: v for k, v in sorted(track_score.items(), key=lambda item: item[1], reverse=True)}
 

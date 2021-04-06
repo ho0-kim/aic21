@@ -144,6 +144,91 @@ def main():
     #print(color_stat)
     print(type_stat)
 
+keyword_right = [
+    'turn right',
+    'turns right',
+    'turning right',
+    'going right',
+    'right-turning',
+]
+
+keyword_left = [
+    'turn left',
+    'turns left',
+    'turning left',
+    'going left',
+    'right-turning',
+]
+
+keyword_up = [
+    'speed up',
+    'speeds up',
+]
+
+keyword_down = [
+    'slow down',
+    'slows down',
+    'speed down',
+    'speeds down',
+]
+
+keyword_stop = [ 
+    'wait',
+    'stops',
+    'is stopped',
+]
+
+def is_right_turn(nl):
+    for keyword in keyword_right:
+        if nl.lower().find(keyword) != -1:
+            return True
+    return False
+
+def is_left_turn(nl):
+    for keyword in keyword_left:
+        if nl.lower().find(keyword) != -1:
+            return True
+    return False
+
+def is_speed_up(nl):
+    for keyword in keyword_up:
+        if nl.lower().find(keyword) != -1:
+            return True
+    return False
+
+def is_speed_down(nl):
+    for keyword in keyword_down:
+        if nl.lower().find(keyword) != -1:
+            return True
+    return False
+
+def is_stop_motion(nl):
+    for keyword in keyword_stop:
+        if nl.lower().find(keyword) != -1:
+            return True
+    return False
+
+def motion_detection(nls):
+    right, left, up, down, stop = 0, 0, 0, 0, 0
+    for nl in nls:
+        right += 1 if is_right_turn(nl) else 0
+        left += 1 if is_left_turn(nl) else 0
+        up += 1 if is_speed_up(nl) else 0
+        down += 1 if is_speed_down(nl) else 0
+        stop += 1 if is_stop_motion(nl) else 0
+    return [right, left, up, down, stop]
+
+def motion_calculation(track_id):
+    with open("../data/test-motions.json", 'r') as file:
+        motion_data = json.load(file)
+    turn = motion_data[track_id]['turn']
+    down = 1 if motion_data[track_id]['is_down'] else 0
+    stop = 1 if motion_data[track_id]['is_stop'] else 0
+    right = 1 if turn > 60 else 0 # alternative value: 20
+    left = 1 if turn < -60 else 0
+
+    return [right, left, 0, down, stop]
+
 if __name__ == '__main__':
     main()
 
