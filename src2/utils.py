@@ -150,6 +150,7 @@ keyword_right = [
     'turning right',
     'going right',
     'right-turning',
+    'right turn'
 ]
 
 keyword_left = [
@@ -158,6 +159,7 @@ keyword_left = [
     'turning left',
     'going left',
     'right-turning',
+    'left turn'
 ]
 
 keyword_up = [
