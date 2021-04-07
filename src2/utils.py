@@ -148,18 +148,18 @@ keyword_right = [
     'turn right',
     'turns right',
     'turning right',
-    'going right',
-    'right-turning',
-    'right turn'
+    'right turn',
+    'takes a right',
+    'took a right'
 ]
 
 keyword_left = [
     'turn left',
     'turns left',
     'turning left',
-    'going left',
-    'right-turning',
-    'left turn'
+    'left turn',
+    'turned left',
+    'takes a left'
 ]
 
 keyword_up = [
@@ -168,8 +168,9 @@ keyword_up = [
 ]
 
 keyword_down = [
-    'slow down',
-    'slows down',
+    'slow',
+    'slows',
+    'slowly'
     'speed down',
     'speeds down',
 ]
@@ -177,7 +178,8 @@ keyword_down = [
 keyword_stop = [ 
     'wait',
     'stops',
-    'is stopped',
+    'stopped',
+    'waiting'
 ]
 
 def is_right_turn(nl):
