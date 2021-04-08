@@ -112,6 +112,7 @@ class CityFlowNLDataset(Dataset):
         dp["crops"] = crops
         dp["color"] = color_prob
         dp["type"] = type_prob
+        dp["id"] = self.list_of_uuids[index]
 
         return dp
 
@@ -132,6 +133,7 @@ class CityFlowNLDataset(Dataset):
         ret["crops"] = torch.stack([b["crops"] for b in batch]).to(dtype=torch.float32).cuda()
         ret["color"] = [b["color"] for b in batch]
         ret["type"] = [b["type"] for b in batch]
+        ret["id"] = [b["id"] for b in batch]
         return ret
 
     def seed_worker(self, worker_id):

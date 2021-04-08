@@ -6,6 +6,10 @@ from car_colors import COLORS
 from car_types import TYPES
 from collections import Counter
 
+import cv2
+import torch
+import torch.nn.functional as F
+
 def tokenize(sentence):
     tokens = []
     sentence = sentence.lower()
@@ -232,6 +236,85 @@ def motion_calculation(track_id):
     left = 1 if turn < -60 else 0
 
     return [right, left, 0, down, stop]
+
+class Vicinity:
+    def __init__(self, json_path, cfg):
+        self.date_cfg = cfg["data"]
+        self.keyword_rear = [
+            'followed by',
+            'in front of',
+            'behind by'
+        ]
+
+        self.keyword_front = [
+            'behind',
+            'following',
+            'follows',
+            'after'
+        ]
+        with open(json_path, "r") as f:
+            self.vicinity_json = json.load(f)
+
+    def _has_rear_car(self, nl):
+        for keyword in self.keyword_rear:
+            if nl.lower().find(keyword) != -1:
+                return True
+        return False
+
+    def _has_front_car(self, nl):
+        for keyword in self.keyword_front:
+            if nl.lower().find(keyword) != -1:
+                return True
+        return False
+
+    def _has_color(self, nl):
+        for color_label in range(len(COLORS)):
+            for color_word in COLORS[color_label]:
+                if nl.lower().find(color_word) != -1:
+                    return color_label
+        return -1
+
+    def _has_type(self, nl):
+        for type_label in range(len(TYPES)):
+            for type_word in TYPES[type_label]:
+                if nl.lower().find(type_word) != -1:
+                    return type_label
+        return -1
+    
+    def vicinity_calculation(self, track_id, nls, model_color, model_type):
+        score = [0., 0., 0., 0.]    # score [rear color, rear type, front color, front type]
+        for nl in nls:
+            if self._has_rear_car(nl):
+                self.vicinity_json[track_id]["rear"] == 1:
+                    frame = cv2.imread(self.vicinity_json[track_id]["rear_frame"])
+                    box = self.vicinity_json[track_id]["rear_bbox"]
+                    crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
+                    crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
+                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).cuda()
+                    color_label = self._has_color(nl[len(nl)//2:])
+                    type_label = self._has_type(nl[len(nl)//2:])
+                    if color_label > 0:
+                        t = model_color.forward(crop)[0]
+                        score[0] += F.softmax(t)[color_label]
+                    if type_label > 0:
+                        t = model_type.forward(crop)[0]
+                        score[1] += F.softmax(t)[type_label]
+            elif self._has_front_car(nl):
+                self.vicinity_json[track_id]["front"] == 1:
+                    frame = cv2.imread(self.vicinity_json[track_id]["front_frame"])
+                    box = self.vicinity_json[track_id]["front_bbox"]
+                    crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
+                    crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
+                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).cuda()
+                    color_label = self._has_color(nl[len(nl)//2:])
+                    type_label = self._has_type(nl[len(nl)//2:])
+                    if color_label > 0:
+                        t = model_color.forward(crop)[0]
+                        score[2] += F.softmax(t)[color_label]
+                    if type_label > 0:
+                        t = model_type.forward(crop)[0]
+                        score[3] += F.softmax(t)[type_label]
+        return score
 
 if __name__ == '__main__':
     main()

@@ -27,6 +27,11 @@ def infer(args):
     with open(cfg["data"]["test_query_json"], "r") as f:
         queries = json.load(f)
 
+    if os.path.exists('data/test-vicinity.json'):
+        vicinity = Vicinity(json_path='data/test-vicinity.json', cfg=cfg)
+    else:
+        vicinity = Vicinity(json_path='../data/test-vicinity.json', cfg=cfg)
+
     # save and load files(??)
     # if os.path.isdir(cfg["eval"]["continue"]):
     #     files = os.listdir(os.path.join(cfg["eval"]["continue"], "logs"))
@@ -85,12 +90,18 @@ def infer(args):
 
             for i, track_id in enumerate(track["id"]):
                 track_score[track_id] = score_color[i] + score_type[i]
+                
                 motion_track = motion_calculation(track_id)
                 motion_score = np.dot(motion_nl, motion_track)
-                motion_weight = [.8, .8, .0, .0, .6] #weight for right/left/spd up/spd down/stop
+                motion_weight = [.3, .3, .0, .0, .3] #weight for right/left/spd up/spd down/stop
                 motion_score = np.dot(motion_score, motion_weight)
                 track_score[track_id] += np.sum(motion_score)
-
+                
+                vicinity_score = vicinity.calculation(track_id, q, model_color, model_type)
+                vicinity_weight = [.2, .2, .2, .2] # weight for [front color, front type, rear color, rear type]
+                vicinity_score = np.dot(vicinity_score, vicinity_weight)
+                track_score[track_id] += np.sum(vicinity_score)
+                
         top_tracks = {k: v for k, v in sorted(track_score.items(), key=lambda item: item[1], reverse=True)}
 
         with open(os.path.join(cfg["eval"]["log"], "%s.log" % query_id), "w") as f:
