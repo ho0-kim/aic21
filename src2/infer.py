@@ -100,7 +100,7 @@ def infer(args):
         results_dict[query_id] = list(top_tracks.keys())
         print(f'Elapse time: {time.time() - time_eval}')
     with open(os.path.join(cfg["eval"]["log"], f"result{time.time()}.json"), "w") as f:
-        json.dump(results_dict, f)
+        json.dump(results_dict, f, indent=4)
     print(f'finished.')
     print(f'Elapse time for full evaluation: {time.time() - time_start}')
 
