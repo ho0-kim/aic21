@@ -180,21 +180,21 @@ class CityFlowNLInferenceDataset(Dataset):
             box = track["boxes"][frame_idx]
             crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
 
-            frame = cv2.resize(frame, dsize=tuple(self.data_cfg["frame_size"]))
+            #frame = cv2.resize(frame, dsize=tuple(self.data_cfg["frame_size"]))
             crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))  # d: 128, 128, 3
 
-            frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
+            #frames.append(torch.from_numpy(frame).permute([2, 0, 1]).cuda())
             crops.append(torch.from_numpy(crop).permute([2, 0, 1]).cuda())
 
         dp = {"id": self.list_of_uuids[index]}
-        dp.update({"frames": frames})
+        #dp.update({"frames": frames})
         dp.update({"crops": crops})
 
         return dp
 
     def collate_fn(self, batch):
         # padding for batch
-        lengths = [len(t["frames"]) for t in batch]
+        lengths = [len(t["crops"]) for t in batch]
         max_len = max(lengths)
 
         for index_in_batch, data in enumerate(batch):
