@@ -84,20 +84,23 @@ class CarColor(nn.Module):
     def compute_color_list(self, query):
         return getColorList(query)
 
-    def compute_similarity_on_frame(self, tracks, colors):
+    def compute_similarity_on_frame(self, tracks):
         with torch.no_grad():
-            scores = list()
+            percentages = list()
             for i, t in enumerate(tracks['crops']):
-                score = 0.
                 actual_t = t[:tracks['sequence_len'][i]]
                 out = self.forward(actual_t)
                 percentage = nn.functional.softmax(out, dim=1)[0]
                 percentage = percentage.detach().to('cpu').numpy()
+                percentages.append(percentage)
 
-                for c in colors:
-                    score += percentage[c]
-                scores.append(score)
-        return scores
+        return percentages
+
+    def compute_color_prob(self, colors, probs):
+        score = 0.
+        for c in colors:
+            score += probs[c]
+        return score
 
 class CarType(nn.Module):
     def __init__(self, cfg):
@@ -149,21 +152,23 @@ class CarType(nn.Module):
     def compute_type_list(self, query):
         return getTypeList(query)
 
-    def compute_similarity_on_frame(self, tracks, types):
+    def compute_similarity_on_frame(self, tracks):
         with torch.no_grad():
-            scores = list()
+            percentages = list()
             for i, t in enumerate(tracks['crops']):
-                score = 0.
                 actual_t = t[:tracks['sequence_len'][i]]
                 out = self.forward(actual_t)
-
                 percentage = nn.functional.softmax(out, dim=1)[0]
                 percentage = percentage.detach().to('cpu').numpy()
+                percentages.append(percentage)
 
-                for tp in types:
-                    score += percentage[tp]
-                scores.append(score)
-        return scores
+        return percentages
+
+    def compute_type_prob(self, types, probs):
+        score = 0.
+        for tp in types:
+            score += probs[tp]
+        return score
 
 
 

@@ -16,6 +16,7 @@ import random
 import os
 
 from utils import motion_detection, motion_calculation
+from json_formatter import NumpyArrayEncoder
 
 def infer(args):
     # Read configuation json file
@@ -75,6 +76,7 @@ def infer(args):
     results_dict = {}
 
     for idx, query_id in enumerate(queries):
+        #if idx < 527: continue # on debugging ================================
         print(f'Evaluate query {idx + 1} {query_id}')
         time_eval = time.time()
 
@@ -84,25 +86,76 @@ def infer(args):
         types = model_type.compute_type_list(q)
         motion_nl = motion_detection(q) # get bit vector which explains a track behavior
 
-        for track in dataloader:
-            score_color = model_color.compute_similarity_on_frame(track, colors)
-            score_type = model_type.compute_similarity_on_frame(track, types)
-            track["crops"].detach()
-	
-            for i, track_id in enumerate(track["id"]):
-                track_score[track_id] = score_color[i] + score_type[i]
-                
+        if cfg["eval"]["use_accelerator"]: # true: load files / false: save files
+            # load files for accelerator start =========================
+            with open(cfg["data"]["test_track_json"]) as f:
+                tracks = json.load(f)
+
+            with open(os.path.join(cfg["eval"]["metalog_color"], f"{query_id}.json"), "r") as f:
+                color_probs = json.load(f)
+
+            with open(os.path.join(cfg["eval"]["metalog_type"], f"{query_id}.json"), "r") as f:
+                type_probs = json.load(f)
+            # load files for accelerator end ===========================
+
+            track_ids = list(tracks.keys())
+
+            for track_id in track_ids:
+                prct_color = np.asarray(color_probs[track_id])
+                prct_type = np.asarray(type_probs[track_id])
+
+                score_color = model_color.compute_color_prob(colors, prct_color)
+                score_type = model_type.compute_type_prob(types, prct_type)
+                track_score[track_id] = score_color + score_type
+
                 motion_track = motion_calculation(track_id)
                 motion_score = np.dot(motion_nl, motion_track)
-                motion_weight = [.5, .5, .0, .0, .3] #weight for right/left/spd up/spd down/stop
+                motion_weight = [.8, .8, .0, .0, .6]  # weight for right/left/spd up/spd down/stop
                 motion_score = np.dot(motion_score, motion_weight)
                 track_score[track_id] += np.sum(motion_score)
-                
+
                 vicinity_score = vicinity.calculation(track_id, q, model_color, model_type)
-                vicinity_weight = [.3, .3, .3, .3] # weight for [front color, front type, rear color, rear type]
+                vicinity_weight = [.3, .3, .3, .3]  # weight for [front color, front type, rear color, rear type]
                 vicinity_score = np.dot(vicinity_score, vicinity_weight)
                 track_score[track_id] += np.sum(vicinity_score)
-                
+
+        else:
+            # save files for accelerator
+
+            color_prob_dict = dict()
+            type_prob_dict = dict()
+
+            for t, track in enumerate(dataloader):
+                prct_color = model_color.compute_similarity_on_frame(track)
+                prct_type = model_type.compute_similarity_on_frame(track)
+                track["crops"].detach()
+
+                for i, track_id in enumerate(track["id"]):
+                    score_color = model_color.compute_color_prob(colors, prct_color[i])
+                    score_type = model_type.compute_type_prob(types, prct_type[i])
+                    track_score[track_id] = score_color + score_type
+
+                    motion_track = motion_calculation(track_id)
+                    motion_score = np.dot(motion_nl, motion_track)
+                    motion_weight = [.8, .8, .0, .0, .6]  # weight for right/left/spd up/spd down/stop
+                    motion_score = np.dot(motion_score, motion_weight)
+                    track_score[track_id] += np.sum(motion_score)
+
+                    vicinity_score = vicinity.calculation(track_id, q, model_color, model_type)
+                    vicinity_weight = [.3, .3, .3, .3]  # weight for [front color, front type, rear color, rear type]
+                    vicinity_score = np.dot(vicinity_score, vicinity_weight)
+                    track_score[track_id] += np.sum(vicinity_score)
+
+                    color_prob_dict.update({track_id: prct_color[i]})
+                    type_prob_dict.update({track_id: prct_type[i]})
+
+            # save files for eval accelerator start =====================
+            with open(os.path.join(cfg["eval"]["metalog_color"], f"{query_id}.json"), "w") as f:
+                json.dump(color_prob_dict, f, cls=NumpyArrayEncoder, indent=4)
+            with open(os.path.join(cfg["eval"]["metalog_type"], f"{query_id}.json"), "w") as f:
+                json.dump(type_prob_dict, f, cls=NumpyArrayEncoder, indent=4)
+            # save files for eval accelerator end =======================
+
         top_tracks = {k: v for k, v in sorted(track_score.items(), key=lambda item: item[1], reverse=True)}
 
         with open(os.path.join(cfg["eval"]["log"], "%s.log" % query_id), "w") as f:
