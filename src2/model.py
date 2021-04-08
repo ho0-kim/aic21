@@ -89,10 +89,9 @@ class CarColor(nn.Module):
             scores = list()
             for i, t in enumerate(tracks['crops']):
                 score = 0.
-                out = self.forward(t)
-                actual_out = out[:tracks['sequence_len'][i]]
-                #_, pre = torch.max(actual_out, 1)
-                percentage = F.softmax(actual_out, dim=1)[0]
+                actual_t = t[:tracks['sequence_len'][i]]
+                out = self.forward(actual_t)
+                percentage = nn.functional.softmax(out, dim=1)[0]
                 percentage = percentage.detach().to('cpu').numpy()
 
                 for c in colors:
@@ -155,10 +154,10 @@ class CarType(nn.Module):
             scores = list()
             for i, t in enumerate(tracks['crops']):
                 score = 0.
-                out = self.forward(t)
-                actual_out = out[:tracks['sequence_len'][i]]
-                #_, pre = torch.max(actual_out, 1)
-                percentage = F.softmax(actual_out, dim=1)[0]
+                actual_t = t[:tracks['sequence_len'][i]]
+                out = self.forward(actual_t)
+
+                percentage = nn.functional.softmax(out, dim=1)[0]
                 percentage = percentage.detach().to('cpu').numpy()
 
                 for tp in types:

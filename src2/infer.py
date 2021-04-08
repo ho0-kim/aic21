@@ -87,7 +87,8 @@ def infer(args):
         for track in dataloader:
             score_color = model_color.compute_similarity_on_frame(track, colors)
             score_type = model_type.compute_similarity_on_frame(track, types)
-
+            track["crops"].detach()
+	
             for i, track_id in enumerate(track["id"]):
                 track_score[track_id] = score_color[i] + score_type[i]
                 
