@@ -281,11 +281,11 @@ class Vicinity:
                     return type_label
         return -1
     
-    def vicinity_calculation(self, track_id, nls, model_color, model_type):
+    def calculation(self, track_id, nls, model_color, model_type):
         score = [0., 0., 0., 0.]    # score [rear color, rear type, front color, front type]
         for nl in nls:
             if self._has_rear_car(nl):
-                self.vicinity_json[track_id]["rear"] == 1:
+                if self.vicinity_json[track_id]["rear"] == 1:
                     frame = cv2.imread(self.vicinity_json[track_id]["rear_frame"])
                     box = self.vicinity_json[track_id]["rear_bbox"]
                     crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
@@ -300,7 +300,7 @@ class Vicinity:
                         t = model_type.forward(crop)[0]
                         score[1] += F.softmax(t)[type_label]
             elif self._has_front_car(nl):
-                self.vicinity_json[track_id]["front"] == 1:
+                if self.vicinity_json[track_id]["front"] == 1:
                     frame = cv2.imread(self.vicinity_json[track_id]["front_frame"])
                     box = self.vicinity_json[track_id]["front_bbox"]
                     crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
