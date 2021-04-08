@@ -239,7 +239,7 @@ def motion_calculation(track_id):
 
 class Vicinity:
     def __init__(self, json_path, cfg):
-        self.date_cfg = cfg["data"]
+        self.data_cfg = cfg["data"]
         self.keyword_rear = [
             'followed by',
             'in front of',
@@ -288,9 +288,9 @@ class Vicinity:
                 if self.vicinity_json[track_id]["rear"] == 1:
                     frame = cv2.imread(self.vicinity_json[track_id]["rear_frame"])
                     box = self.vicinity_json[track_id]["rear_bbox"]
-                    crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
+                    crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
                     crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
-                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).cuda()
+                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).to(dtype=torch.float32).cuda()
                     color_label = self._has_color(nl[len(nl)//2:])
                     type_label = self._has_type(nl[len(nl)//2:])
                     if color_label > 0:
@@ -303,9 +303,9 @@ class Vicinity:
                 if self.vicinity_json[track_id]["front"] == 1:
                     frame = cv2.imread(self.vicinity_json[track_id]["front_frame"])
                     box = self.vicinity_json[track_id]["front_bbox"]
-                    crop = frame[box[1]:box[1] + box[3], box[0]: box[0] + box[2], :]
+                    crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
                     crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
-                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).cuda()
+                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).to(dtype=torch.float32).cuda()
                     color_label = self._has_color(nl[len(nl)//2:])
                     type_label = self._has_type(nl[len(nl)//2:])
                     if color_label > 0:

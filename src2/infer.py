@@ -94,12 +94,12 @@ def infer(args):
                 
                 motion_track = motion_calculation(track_id)
                 motion_score = np.dot(motion_nl, motion_track)
-                motion_weight = [.3, .3, .0, .0, .3] #weight for right/left/spd up/spd down/stop
+                motion_weight = [.5, .5, .0, .0, .3] #weight for right/left/spd up/spd down/stop
                 motion_score = np.dot(motion_score, motion_weight)
                 track_score[track_id] += np.sum(motion_score)
                 
                 vicinity_score = vicinity.calculation(track_id, q, model_color, model_type)
-                vicinity_weight = [.2, .2, .2, .2] # weight for [front color, front type, rear color, rear type]
+                vicinity_weight = [.3, .3, .3, .3] # weight for [front color, front type, rear color, rear type]
                 vicinity_score = np.dot(vicinity_score, vicinity_weight)
                 track_score[track_id] += np.sum(vicinity_score)
                 
