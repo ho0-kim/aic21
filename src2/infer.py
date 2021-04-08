@@ -28,10 +28,7 @@ def infer(args):
     with open(cfg["data"]["test_query_json"], "r") as f:
         queries = json.load(f)
 
-    if os.path.exists('data/test-vicinity.json'):
-        vicinity = Vicinity(json_path='data/test-vicinity.json', cfg=cfg)
-    else:
-        vicinity = Vicinity(json_path='../data/test-vicinity.json', cfg=cfg)
+    vicinity = Vicinity(json_path='data/test-vicinity.json', cfg=cfg)
 
     # save and load files(??)
     # if os.path.isdir(cfg["eval"]["continue"]):
@@ -76,7 +73,6 @@ def infer(args):
     results_dict = {}
 
     for idx, query_id in enumerate(queries):
-        #if idx < 527: continue # on debugging ================================
         print(f'Evaluate query {idx + 1} {query_id}')
         time_eval = time.time()
 

@@ -1,10 +1,10 @@
 {
     "data":{
-        "train_json" : "../../data/train-tracks.json",
-        "test_query_json" : "../../data/test-queries.json",
-        "test_track_json" : "../../data/test-tracks.json",
+        "train_json" : "data/train-tracks.json",
+        "test_query_json" : "data/test-queries.json",
+        "test_track_json" : "data/test-tracks.json",
 
-        "cityflow_path" : "../../",
+        "cityflow_path" : "./",
 
         "modalities" : ["frames",
                         "crops",
