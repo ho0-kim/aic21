@@ -226,7 +226,7 @@ def motion_detection(nls):
         stop += 1 if is_stop_motion(nl) else 0
     return [right, left, up, down, stop]
 
-def motion_calculation(track_id):
+def motion_calculation(track_id, threshold):
     if os.path.exists('data/test-motions.json'):
         with open("data/test-motions.json", 'r') as file:
             motion_data = json.load(file)
@@ -237,8 +237,8 @@ def motion_calculation(track_id):
     turn = motion_data[track_id]['turn']
     down = 1 if motion_data[track_id]['is_down'] else 0
     stop = 1 if motion_data[track_id]['is_stop'] else 0
-    right = 1 if turn > 60 else 0 # alternative value: 20
-    left = 1 if turn < -60 else 0
+    right = 1 if turn > threshold else 0 # alternative value: 20
+    left = 1 if turn < -threshold else 0
 
     return [right, left, 0, down, stop]
 
@@ -329,6 +329,41 @@ class Vicinity:
                         if type_label > 0:
                             t = model_type.forward(crop)[0]
                             score[3] += F.softmax(t, dim=0)[type_label]
+        return score, count
+
+class RightLeftLane:
+    def __init__(self, json_path):
+        self.keyword_leftlane = [
+            'left lane'
+        ]
+        self.keyword_rightlane = [
+            'right lane'
+        ]
+        with open(json_path, "r") as f:
+            self._2d_direction = json.load(f)
+
+    def _on_left_lane(self, nl):
+        for keyword in self.keyword_leftlane:
+            if nl.lower().find(keyword) != -1:
+                return True
+        return False
+    
+    def _on_right_lane(self, nl):
+        for keyword in self.keyword_rightlane:
+            if nl.lower().find(keyword) != -1:
+                return True
+        return False
+    
+    def calculation(self, track_id, nls):
+        score = [0., 0.]    # score [left lane, right lane]
+        count = [0, 0]      # count [left lane, right lane]
+        for nl in nls:
+            if self._on_left_lane(nl):
+                count[0] += 1
+                score[0] += 1 if self._2d_direction[track_id] == "up" else 0
+            elif self._on_right_lane(nl):
+                count[1] += 1
+                score[1] += 1 if self._2d_direction[track_id] == "up" else 0
         return score, count
 
 if __name__ == '__main__':

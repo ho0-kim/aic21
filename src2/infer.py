@@ -29,6 +29,7 @@ def infer(args):
         queries = json.load(f)
 
     vicinity = Vicinity(json_path='data/test-vicinity.json', cfg=cfg)
+    which_lane = RightLeftLane(json_path='data/test-2d-dir.json')
 
     # save and load files(??)
     # if os.path.isdir(cfg["eval"]["continue"]):
@@ -105,17 +106,37 @@ def infer(args):
                 score_type = model_type.compute_type_prob(types, prct_type)
                 track_score[track_id] = score_color + score_type
 
-                weight_overall = 1.
-                motion_track = motion_calculation(track_id)
-                motion_score = np.dot(motion_nl, motion_track)
-                vicinity_score, vicinity_count = vicinity.calculation(track_id, q, model_color, model_type)
-                motvic_nl_count = motion_nl + vicinity_count
-                agg = np.sum(motvic_nl_count)
-                if agg == 0: agg = 1e-10
-                weight_motvic = weight_overall * np.array(motvic_nl_count) / agg # weight for right/left/spd up/spd down/stop/rear color/rear type/front color/front type
-                motion_score = np.dot(motion_score, weight_motvic[:5])
-                vicinity_score = np.dot(vicinity_score, weight_motvic[5:])
-                track_score[track_id] += np.sum(vicinity_score) + np.sum(motion_score)
+                if cfg["eval"]["variable_weights"]:
+                    weight_overall = cfg["eval"]["overall_weight"]
+
+                    motion_track = motion_calculation(track_id, cfg["eval"]["turn_threshold"])
+                    vicinity_track, vicinity_nl = vicinity.calculation(track_id, q, model_color, model_type)
+                    lane_track, lane_nl = which_lane.calculation(track_id, q)
+
+                    score_all = motion_track + vicinity_track + lane_track
+                    count_all = motion_nl + vicinity_nl + lane_nl
+                    
+                    agg = np.sum(count_all)
+                    if agg == 0: agg = 1e-10
+                    weight_all = weight_overall * np.array(count_all) / agg # weight for right/left/spd up/spd down/stop/rear color/rear type/front color/front type/left lane/right lane
+
+                    track_score[track_id] += np.dot(score_all, weight_all)
+                else:
+                    motion_track = motion_calculation(track_id, cfg["eval"]["turn_threshold"])
+                    motion_score = np.dot(motion_nl, motion_track)
+                    motion_weight = [.8, .8, .0, .0, .6]  # weight for right/left/spd up/spd down/stop
+                    motion_score = np.dot(motion_score, motion_weight)
+                    track_score[track_id] += np.sum(motion_score)
+
+                    vicinity_score, _ = vicinity.calculation(track_id, q, model_color, model_type)
+                    vicinity_weight = [.3, .3, .3, .3]  # weight for [rear color, rear type, front color, front type]
+                    vicinity_score = np.dot(vicinity_score, vicinity_weight)
+                    track_score[track_id] += np.sum(vicinity_score)
+
+                    lane_score, _ = which_lane.calculation(track_id, q)
+                    lane_weight = [.8, .8] # weight for [left lane, right lane]
+                    lane_score = np.dot(lane_score, lane_weight)
+                    track_score[track_id] += np.sum(lane_score)
 
         else:
             # save files for accelerator
@@ -140,7 +161,7 @@ def infer(args):
                     track_score[track_id] += np.sum(motion_score)
 
                     vicinity_score = vicinity.calculation(track_id, q, model_color, model_type)
-                    vicinity_weight = [.3, .3, .3, .3]  # weight for [front color, front type, rear color, rear type]
+                    vicinity_weight = [.3, .3, .3, .3]  # weight for [rear color, rear type, front color, front type]
                     vicinity_score = np.dot(vicinity_score, vicinity_weight)
                     track_score[track_id] += np.sum(vicinity_score)
 

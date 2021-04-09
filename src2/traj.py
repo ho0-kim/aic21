@@ -189,6 +189,7 @@ class Movement:
             
             if i == len(vec): vec_i = i-1
             else: vec_i = i
+            if vec[vec_i, 1] == 0: vec[vec_i, 1] = 1e-15
             l = -vec[vec_i,0] / vec[vec_i, 1]
             new_candidates = []
             new_dist = []
@@ -298,6 +299,7 @@ class Movement:
             
             if i == len(vec): vec_i = i-1
             else: vec_i = i
+            if vec[vec_i, 1] == 0: vec[vec_i, 1] = 1e-15
             l = -vec[vec_i,0] / vec[vec_i, 1]
             new_candidates = []
             new_dist = []
@@ -372,9 +374,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     # json_file = 'data/train-tracks.json'
-    # out_file = 'data/train-vicinity.json'
     json_file = 'data/test-tracks.json'
-    out_file = 'data/test-vicinity.json'
     with open(json_file, 'r') as f:
         tracks = json.load(f)
     
@@ -385,11 +385,31 @@ if __name__ == '__main__':
     # uuids[0] = '97ead54f-042a-4497-a17f-514716553337'
     # uuids[0] = 'a9d0b0b6-038a-41b0-b682-b24b87042a6a'
 
-    # subout = {}
-    # subout.update(mov.rear_car(uuids[0]))
-    # subout.update(mov.front_car(uuids[0]))
+    # right left lane
+    # out_file = 'data/train-2d-dir.json'
+    out_file = 'data/test-2d-dir.json'
+    out = {}
+    for i, uuid in enumerate(uuids):
+        if len(tracks[uuid]["frames"]) > 1:
+            _, _2dpts, _ = mov._get_traj(uuid)
+            _sm_2dpts = mov._smoother(_2dpts)
+            _2d_vec = mov._get_vectors(_sm_2dpts) 
+            
+            print(i, np.mean(_2d_vec[:,1]))
+            # if vec[y] < 0, up (right lane) | if vec[y] >0, down (left lane)
+            out[uuid] = "up" if np.mean(_2d_vec[:,1]) < 0 else "down"
+        else:
+            print(i, "num_frame: 1")
+            out[uuid] = "none"
+    
+    json.dump(out, open(out_file, 'w'), indent=4)
 
+
+    # front rear car
+    """
     # 166 1055 1056 1057
+    # out_file = 'data/train-vicinity.json'
+    out_file = 'data/test-vicinity.json'
     out = {}
     for i, uuid in enumerate(uuids):
         print(i)
@@ -404,111 +424,7 @@ if __name__ == '__main__':
         out[uuid] = subout
     
     json.dump(out, open(out_file, 'w'), indent=4)
-    
-
-
-    # bboxes = []
-    # candi_coords = []
-    # frame_ids = []
-
-    # initial_frame = df.frame[:1].item()
-    # print(initial_frame)
-
-    # for i in range(1, len(_sm_3dpts)):
-    #     frame_id = initial_frame + i
-    #     df_frame = df[df.frame == frame_id]
-    #     cars_coord = df_frame[['3dx', '3dy']].to_numpy()
-    #     # print(_sm_3dpt[i])
-    #     # print(cars_coord)
-    #     dist_from_maincar = []
-    #     candidates = []
-    #     for j, car_coord in enumerate(cars_coord):
-    #         dist = []
-    #         for _3dpt in _sm_3dpts[:i+1]:
-    #             dist.append(np.linalg.norm(car_coord-_3dpt))
-    #         min_index = dist.index(min(dist))
-    #         # print('min_index', min_index)
-    #         if min_index == 0:
-    #             second_index = 1
-    #         elif min_index == len(dist)-1:
-    #             second_index = min_index-1
-    #         else:
-    #             if dist[min_index-1] < dist[min_index+1]:
-    #                 second_index = min_index - 1
-    #             else:
-    #                 second_index = min_index + 1
-    #         # print('second_index', second_index)
-    #         a = dist[min_index]
-    #         b = dist[second_index]
-    #         c = np.linalg.norm(_sm_3dpts[min_index] - _sm_3dpts[second_index])
-    #         s = (a + b + c) / 2
-    #         dist_from_path = np.sqrt(s*(s-a)*(s-b)*(s-c)) * 2 / c
-    #         # print('dist', dist)
-    #         if dist_from_path < 1:
-    #             d = np.linalg.norm(car_coord - _sm_3dpts[i])
-    #             if d < 3: continue
-    #             candidates.append(j)
-    #             dist_from_maincar.append(d)
-    #     if len(candidates) < 1: continue
-        
-    #     if i == len(vec): vec_i = i-1
-    #     else: vec_i = i
-    #     l = -vec[vec_i,0] / vec[vec_i, 1]
-    #     new_candidates = []
-    #     new_dist = []
-    #     for d, candidate in zip(dist_from_maincar, candidates):
-    #         candi_coord = cars_coord[candidate]
-    #         y = l*(candi_coord[0]-_sm_3dpts[i,0]) + _sm_3dpts[i,1]
-    #         if vec[vec_i, 1] > 0 and y > candi_coord[1]:
-    #             new_candidates.append(candidate)
-    #             new_dist.append(d)
-    #         elif vec[vec_i, 1] < 0 and y < candi_coord[1]:
-    #             new_candidates.append(candidate)
-    #             new_dist.append(d)
-    #     if len(new_candidates) < 1: continue
-    #     print(new_candidates)
-    #     print(new_dist)
-    #     candi_index = new_dist.index(min(new_dist))
-    #     candidate = new_candidates[candi_index]
-    #     print('candidate', candidate)
-    #     candi_coord = cars_coord[candidate]
-    #     bbox = df_frame[['left', 'top', 'width', 'height']].to_numpy()[candidate]
-    #     print(bbox)
-    #     print(candi_coord, '\n')
-
-    #     bboxes.append(bbox)
-    #     candi_coords.append(candi_coord)
-    #     frame_ids.append(frame_id)
-
-    # car_id = 0
-    # cars = dict()
-    # for i in range(len(bboxes)-1):
-    #     if i == 0:
-    #         cars.update({car_id: []})
-    #     if np.linalg.norm(candi_coords[i] - candi_coords[i+1]) > 3:
-    #         car_id += 1
-    #     if car_id not in cars:
-    #         cars.update({car_id: []})
-    #     cars[car_id].append([frame_ids[i], bboxes[i]])
-    # print(cars)
-
-    # max_value = -1
-    # for key in cars:
-    #     if len(cars[key]) > max_value:
-    #         max_value = len(cars[key])
-    #         max_key = key
-    # print(cars[max_key])
-
-    # vec_2d = mov._get_vectors(mov._smoother(_2dpts))
-    # if vec_2d.mean(axis=0) > 0:
-    #     return {'frame_num': cars[max_key][0][0], 'bbox': cars[max_key][0][1]}
-    # else:
-    #     return {'frame_num': cars[max_key][-1][0], 'bbox': cars[max_key][-1][1]}
-
-
-
-
-
+    """
 
     # first test
     """

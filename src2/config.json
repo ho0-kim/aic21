@@ -45,10 +45,19 @@
         "batch_size"        : 16,
         "num_workers"       : 4,
         "continue"          : "",
+        
         "log"               : "./log/",
+        
         "metalog_color"     : "./metalog_color/",
         "metalog_type"      : "./metalog_type/",
-        "use_accelerator"   : false
+        
+        "use_accelerator"   : false,
+        
+        "variable_weights"  : true,
+        "overall_weight"    : 1.0,
+        
+        "turn_threshold"    : 20
+        
     },
 
     "seed" : 777
