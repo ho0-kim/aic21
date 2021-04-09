@@ -105,16 +105,17 @@ def infer(args):
                 score_type = model_type.compute_type_prob(types, prct_type)
                 track_score[track_id] = score_color + score_type
 
+                weight_overall = 1.
                 motion_track = motion_calculation(track_id)
                 motion_score = np.dot(motion_nl, motion_track)
-                motion_weight = [.8, .8, .0, .0, .6]  # weight for right/left/spd up/spd down/stop
-                motion_score = np.dot(motion_score, motion_weight)
-                track_score[track_id] += np.sum(motion_score)
-
-                vicinity_score = vicinity.calculation(track_id, q, model_color, model_type)
-                vicinity_weight = [.3, .3, .3, .3]  # weight for [front color, front type, rear color, rear type]
-                vicinity_score = np.dot(vicinity_score, vicinity_weight)
-                track_score[track_id] += np.sum(vicinity_score)
+                vicinity_score, vicinity_count = vicinity.calculation(track_id, q, model_color, model_type)
+                motvic_nl_count = motion_nl + vicinity_count
+                agg = np.sum(motvic_nl_count)
+                if agg == 0: agg = 1e-10
+                weight_motvic = weight_overall * np.array(motvic_nl_count) / agg # weight for right/left/spd up/spd down/stop/rear color/rear type/front color/front type
+                motion_score = np.dot(motion_score, weight_motvic[:5])
+                vicinity_score = np.dot(vicinity_score, weight_motvic[5:])
+                track_score[track_id] += np.sum(vicinity_score) + np.sum(motion_score)
 
         else:
             # save files for accelerator

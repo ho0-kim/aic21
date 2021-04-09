@@ -288,12 +288,14 @@ class Vicinity:
     
     def calculation(self, track_id, nls, model_color, model_type):
         score = [0., 0., 0., 0.]    # score [rear color, rear type, front color, front type]
+        count = [0, 0, 0, 0]        # count [rear color, rear type, front color, front type]
         for nl in nls:
             if self._has_rear_car(nl):
+                color_label = self._has_color(nl[len(nl) // 2:])
+                type_label = self._has_type(nl[len(nl) // 2:])
+                count[0] += 1 if color_label > 0 else 0
+                count[1] += 1 if type_label > 0 else 0
                 if self.vicinity_json[track_id]["rear"] == 1:
-                    color_label = self._has_color(nl[len(nl) // 2:])
-                    type_label = self._has_type(nl[len(nl) // 2:])
-
                     if color_label > 0 or type_label > 0:
                         frame = cv2.imread(self.vicinity_json[track_id]["rear_frame"])
                         box = self.vicinity_json[track_id]["rear_bbox"]
@@ -309,10 +311,11 @@ class Vicinity:
                             score[1] += F.softmax(t, dim=0)[type_label]
 
             elif self._has_front_car(nl):
+                color_label = self._has_color(nl[len(nl) // 2:])
+                type_label = self._has_type(nl[len(nl) // 2:])
+                count[2] += 1 if color_label > 0 else 0
+                count[3] += 1 if type_label > 0 else 0
                 if self.vicinity_json[track_id]["front"] == 1:
-                    color_label = self._has_color(nl[len(nl) // 2:])
-                    type_label = self._has_type(nl[len(nl) // 2:])
-
                     if color_label > 0 or type_label > 0:
                         frame = cv2.imread(self.vicinity_json[track_id]["front_frame"])
                         box = self.vicinity_json[track_id]["front_bbox"]
@@ -326,7 +329,7 @@ class Vicinity:
                         if type_label > 0:
                             t = model_type.forward(crop)[0]
                             score[3] += F.softmax(t, dim=0)[type_label]
-        return score
+        return score, count
 
 if __name__ == '__main__':
     main()
