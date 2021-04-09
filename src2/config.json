@@ -1,10 +1,10 @@
 {
     "data":{
-        "train_json" : "../../data/train-tracks.json",
-        "test_query_json" : "../../data/test-queries.json",
-        "test_track_json" : "../../data/test-tracks.json",
+        "train_json" : "data/train-tracks.json",
+        "test_query_json" : "data/test-queries.json",
+        "test_track_json" : "data/test-tracks.json",
 
-        "cityflow_path" : "../../",
+        "cityflow_path" : "./",
 
         "modalities" : ["frames",
                         "crops",
@@ -14,7 +14,7 @@
         "crop_size" : [128, 128],
         "frame_size" : [256, 256],
 
-        "max_seq_len" : 20
+        "max_seq_len" : 50
     },
 
     "optimizer":{
@@ -34,18 +34,21 @@
 
     "train":{
         "num_epochs" : 10000,
-        "batch_size" : 4,
-        "num_workers" : 1,
+        "batch_size" : 8,
+        "num_workers" : 2,
         "loss_clip_value" : 10.0,
         "loss_calculator" : "cross_entropy_by_one_hot_enc"
     },
 
     "eval": {
-        "restore_from"  : "ckpts/210401_193121_epoch910.pt",
-        "batch_size"    : 4,
-        "num_workers"   : 1,
-        "continue"      : "",
-        "log"           : "./log/"
+        "restore_from"      : "ckpts/210401_193121_epoch910.pt",
+        "batch_size"        : 16,
+        "num_workers"       : 4,
+        "continue"          : "",
+        "log"               : "./log/",
+        "metalog_color"     : "./metalog_color/",
+        "metalog_type"      : "./metalog_type/",
+        "use_accelerator"   : false
     },
 
     "seed" : 777

@@ -227,8 +227,18 @@ def motion_detection(nls):
     return [right, left, up, down, stop]
 
 def motion_calculation(track_id):
+<<<<<<< HEAD
     with open("data/test-motions.json", 'r') as file:
         motion_data = json.load(file)
+=======
+    if os.path.exists('data/test-motions.json'):
+        with open("data/test-motions.json", 'r') as file:
+            motion_data = json.load(file)
+    else:
+        with open("../data/test-motions.json", 'r') as file:
+            motion_data = json.load(file)
+
+>>>>>>> 051e4f5236660e6b9825b00d5443e128c33d6cbb
     turn = motion_data[track_id]['turn']
     down = 1 if motion_data[track_id]['is_down'] else 0
     stop = 1 if motion_data[track_id]['is_stop'] else 0
@@ -286,34 +296,41 @@ class Vicinity:
         for nl in nls:
             if self._has_rear_car(nl):
                 if self.vicinity_json[track_id]["rear"] == 1:
-                    frame = cv2.imread(self.vicinity_json[track_id]["rear_frame"])
-                    box = self.vicinity_json[track_id]["rear_bbox"]
-                    crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
-                    crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
-                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze(0).to(dtype=torch.float32, device=torch.device('cuda:0'))
-                    color_label = self._has_color(nl[len(nl)//2:])
-                    type_label = self._has_type(nl[len(nl)//2:])
-                    if color_label > 0:
-                        t = model_color.forward(crop)[0]
-                        score[0] += F.softmax(t)[color_label]
-                    if type_label > 0:
-                        t = model_type.forward(crop)[0]
-                        score[1] += F.softmax(t)[type_label]
+                    color_label = self._has_color(nl[len(nl) // 2:])
+                    type_label = self._has_type(nl[len(nl) // 2:])
+
+                    if color_label > 0 or type_label > 0:
+                        frame = cv2.imread(self.vicinity_json[track_id]["rear_frame"])
+                        box = self.vicinity_json[track_id]["rear_bbox"]
+                        crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
+                        crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
+                        crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).to(dtype=torch.float32).cuda()
+
+                        if color_label > 0:
+                            t = model_color.forward(crop)[0]
+                            score[0] += F.softmax(t, dim=0)[color_label]
+                        if type_label > 0:
+                            t = model_type.forward(crop)[0]
+                            score[1] += F.softmax(t, dim=0)[type_label]
+
             elif self._has_front_car(nl):
                 if self.vicinity_json[track_id]["front"] == 1:
-                    frame = cv2.imread(self.vicinity_json[track_id]["front_frame"])
-                    box = self.vicinity_json[track_id]["front_bbox"]
-                    crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
-                    crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
-                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze(0).to(dtype=torch.float32, device=torch.device('cuda:0'))
-                    color_label = self._has_color(nl[len(nl)//2:])
-                    type_label = self._has_type(nl[len(nl)//2:])
-                    if color_label > 0:
-                        t = model_color.forward(crop)[0]
-                        score[2] += F.softmax(t)[color_label]
-                    if type_label > 0:
-                        t = model_type.forward(crop)[0]
-                        score[3] += F.softmax(t)[type_label]
+                    color_label = self._has_color(nl[len(nl) // 2:])
+                    type_label = self._has_type(nl[len(nl) // 2:])
+
+                    if color_label > 0 or type_label > 0:
+                        frame = cv2.imread(self.vicinity_json[track_id]["front_frame"])
+                        box = self.vicinity_json[track_id]["front_bbox"]
+                        crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
+                        crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
+                        crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).to(dtype=torch.float32).cuda()
+
+                        if color_label > 0:
+                            t = model_color.forward(crop)[0]
+                            score[2] += F.softmax(t, dim=0)[color_label]
+                        if type_label > 0:
+                            t = model_type.forward(crop)[0]
+                            score[3] += F.softmax(t, dim=0)[type_label]
         return score
 
 if __name__ == '__main__':
