@@ -227,7 +227,7 @@ def motion_detection(nls):
     return [right, left, up, down, stop]
 
 def motion_calculation(track_id):
-    with open("../data/test-motions.json", 'r') as file:
+    with open("data/test-motions.json", 'r') as file:
         motion_data = json.load(file)
     turn = motion_data[track_id]['turn']
     down = 1 if motion_data[track_id]['is_down'] else 0
@@ -290,7 +290,7 @@ class Vicinity:
                     box = self.vicinity_json[track_id]["rear_bbox"]
                     crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
                     crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
-                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).to(dtype=torch.float32).cuda()
+                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze(0).to(dtype=torch.float32, device=torch.device('cuda:0'))
                     color_label = self._has_color(nl[len(nl)//2:])
                     type_label = self._has_type(nl[len(nl)//2:])
                     if color_label > 0:
@@ -305,7 +305,7 @@ class Vicinity:
                     box = self.vicinity_json[track_id]["front_bbox"]
                     crop = frame[int(box[1]):int(box[1] + box[3]), int(box[0]): int(box[0] + box[2]), :]
                     crop = cv2.resize(crop, dsize=tuple(self.data_cfg["crop_size"]))
-                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze_(dim=0).to(dtype=torch.float32).cuda()
+                    crop = torch.from_numpy(crop).permute([2, 0, 1]).unsqueeze(0).to(dtype=torch.float32, device=torch.device('cuda:0'))
                     color_label = self._has_color(nl[len(nl)//2:])
                     type_label = self._has_type(nl[len(nl)//2:])
                     if color_label > 0:

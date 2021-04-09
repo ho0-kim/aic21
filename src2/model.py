@@ -62,7 +62,7 @@ class CarColor(nn.Module):
             out = self.forward(t)
 
             for k, v in track['color'][i].items():
-                target = torch.LongTensor([k] * len(out)).cuda()
+                target = torch.LongTensor([k] * len(out), device=torch.device('cuda:0'))
                 l += self.loss_model(out, target) * v
             loss += l
         loss /= len(track['crops'])
@@ -127,7 +127,7 @@ class CarType(nn.Module):
             out = self.forward(t)
 
             for k, v in track['type'][i].items():
-                target = torch.LongTensor([k] * len(out)).cuda()
+                target = torch.LongTensor([k] * len(out), device=torch.device('cuda:0'))
                 l += self.loss_model(out, target) * v
             loss += l
         loss /= len(track['crops'])

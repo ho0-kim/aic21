@@ -58,7 +58,8 @@ def infer(args):
                             batch_size=cfg["eval"]["batch_size"],
                             num_workers=cfg["eval"]["num_workers"],
                             collate_fn=dataset.collate_fn,
-                            worker_init_fn=dataset.seed_worker)
+                            worker_init_fn=dataset.seed_worker,
+                            )
 
     #model
     model_color = CarColor(cfg=cfg).cuda()
