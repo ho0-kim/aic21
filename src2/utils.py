@@ -333,24 +333,28 @@ class Vicinity:
 
 class RightLeftLane:
     def __init__(self, json_path):
-        self.keyword_leftlane = [
-            'left lane'
-        ]
-        self.keyword_rightlane = [
-            'right lane'
-        ]
+        # self.keyword_leftlane = [
+        #     'left lane'
+        # ]
+        # self.keyword_rightlane = [
+        #     'right lane'
+        # ]
         with open(json_path, "r") as f:
             self._2d_direction = json.load(f)
 
     def _on_left_lane(self, nl):
-        for keyword in self.keyword_leftlane:
-            if nl.lower().find(keyword) != -1:
+        e = nl.lower().find('left lane')
+        s = 0 if e < 10 else e - 10
+        if e != -1:
+            if 'on' in nl.lower()[s:e] or 'in' in nl.lower()[s:e]:
                 return True
         return False
     
     def _on_right_lane(self, nl):
-        for keyword in self.keyword_rightlane:
-            if nl.lower().find(keyword) != -1:
+        e = nl.lower().find('right lane')
+        s = 0 if e < 10 else e - 10
+        if e != -1:
+            if 'on' in nl.lower()[s:e] or 'in' in nl.lower()[s:e]:
                 return True
         return False
     
@@ -360,7 +364,7 @@ class RightLeftLane:
         for nl in nls:
             if self._on_left_lane(nl):
                 count[0] += 1
-                score[0] += 1 if self._2d_direction[track_id] == "up" else 0
+                score[0] += 1 if self._2d_direction[track_id] == "down" else 0
             elif self._on_right_lane(nl):
                 count[1] += 1
                 score[1] += 1 if self._2d_direction[track_id] == "up" else 0
