@@ -370,6 +370,35 @@ class RightLeftLane:
                 score[1] += 1 if self._2d_direction[track_id] == "up" else 0
         return score, count
 
+class TrafficLight:
+    def __init__(self, json_path):
+        with open(json_path, "r") as f:
+            self.light = json.load(f)
+    
+    def has_trafficlight(self, nl):
+        s = nl.lower()[len(nl)//2:].rfind('light')
+        if s != -1:
+            e = s + 10 if len(nl[s:]) > 10 else s + len(nl[s:])
+            bHas, _ = hasColors(tokenize(nl[s:e]))
+            if not bHas:
+                return True
+        return False
+
+    def calculation(self, track_id, nls):
+        score = 0
+        count = 0
+        for nl in nls:
+            if self.has_trafficlight(nl):
+                count += 1
+                try:
+                    score += 1 if self.light[track_id] else 0
+                except KeyError:
+                    continue
+        return [score], [count]
+
+
+
+
 if __name__ == '__main__':
     main()
 

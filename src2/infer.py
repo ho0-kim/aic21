@@ -30,6 +30,7 @@ def infer(args):
 
     vicinity = Vicinity(json_path='data/test-vicinity.json', cfg=cfg)
     which_lane = RightLeftLane(json_path='data/test-2d-dir.json')
+    light = TrafficLight(json_path='data/test-trafficlight_mrcnn.json')
 
     # save and load files(??)
     # if os.path.isdir(cfg["eval"]["continue"]):
@@ -112,9 +113,10 @@ def infer(args):
                     motion_track = motion_calculation(track_id, cfg["eval"]["turn_threshold"])
                     vicinity_track, vicinity_nl = vicinity.calculation(track_id, q, model_color, model_type)
                     lane_track, lane_nl = which_lane.calculation(track_id, q)
+                    light_track, light_nl = light.calculation(track_id, q)
 
-                    score_all = motion_track + vicinity_track + lane_track
-                    count_all = motion_nl + vicinity_nl + lane_nl
+                    score_all = motion_track + vicinity_track + lane_track + light_track
+                    count_all = motion_nl + vicinity_nl + lane_nl + light_nl
                     
                     agg = np.sum(count_all)
                     if agg == 0: agg = 1e-10
@@ -138,6 +140,10 @@ def infer(args):
                     lane_score = np.dot(lane_score, lane_weight)
                     track_score[track_id] += np.sum(lane_score)
 
+                    light_score, _ = light.calculation(track_id, q)
+                    light_weight = .8     # weight for traffic light
+                    track_score[track_id] += light_score[0] + light_weight
+
         else:
             # save files for accelerator
 
@@ -160,9 +166,10 @@ def infer(args):
                         motion_track = motion_calculation(track_id, cfg["eval"]["turn_threshold"])
                         vicinity_track, vicinity_nl = vicinity.calculation(track_id, q, model_color, model_type)
                         lane_track, lane_nl = which_lane.calculation(track_id, q)
+                        light_track, light_nl = light.calculation(track_id, q)
 
-                        score_all = motion_track + vicinity_track + lane_track
-                        count_all = motion_nl + vicinity_nl + lane_nl
+                        score_all = motion_track + vicinity_track + lane_track + light_track
+                        count_all = motion_nl + vicinity_nl + lane_nl + light_nl
                         
                         agg = np.sum(count_all)
                         if agg == 0: agg = 1e-10
@@ -185,6 +192,10 @@ def infer(args):
                         lane_weight = [.8, .8] # weight for [left lane, right lane]
                         lane_score = np.dot(lane_score, lane_weight)
                         track_score[track_id] += np.sum(lane_score)
+
+                        light_score, _ = light.calculation(track_id, q)
+                        light_weight = .8     # weight for traffic light
+                        track_score[track_id] += light_score[0] + light_weight
 
                     color_prob_dict.update({track_id: prct_color[i]})
                     type_prob_dict.update({track_id: prct_type[i]})
