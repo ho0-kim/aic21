@@ -131,7 +131,7 @@ def infer(args):
                     track_score[track_id] += np.sum(motion_score)
 
                     vicinity_score, _ = vicinity.calculation(track_id, q, model_color, model_type)
-                    vicinity_weight = [.3, .3, .3, .3]  # weight for [rear color, rear type, front color, front type]
+                    vicinity_weight = [.25, .25, .25, .25]  # weight for [rear color, rear type, front color, front type]
                     vicinity_score = np.dot(vicinity_score, vicinity_weight)
                     track_score[track_id] += np.sum(vicinity_score)
 
@@ -142,7 +142,7 @@ def infer(args):
 
                     light_score, _ = light.calculation(track_id, q)
                     light_weight = .8     # weight for traffic light
-                    track_score[track_id] += light_score[0] + light_weight
+                    track_score[track_id] += light_score[0] * light_weight
 
         else:
             # save files for accelerator
@@ -195,7 +195,7 @@ def infer(args):
 
                         light_score, _ = light.calculation(track_id, q)
                         light_weight = .8     # weight for traffic light
-                        track_score[track_id] += light_score[0] + light_weight
+                        track_score[track_id] += light_score[0] * light_weight
 
                     color_prob_dict.update({track_id: prct_color[i]})
                     type_prob_dict.update({track_id: prct_type[i]})
