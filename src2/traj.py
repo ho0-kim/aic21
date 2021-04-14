@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 import math
 
+import cv2
+
 # from filterpy.kalman import KalmanFilter
 # from filterpy.common import Q_discrete_white_noise
 
@@ -119,10 +121,10 @@ class Movement:
     def _read_det(self, uuid):
         det_file = self.tracks[uuid]["frames"][0]
         det_file = os.path.dirname(os.path.dirname(det_file))
-        det_file = os.path.join(det_file, "det")
-        det_file = os.path.join(det_file, "det_mask_rcnn.txt") #mask_rcnn, ssd512, yolo3
+        det_file = os.path.join(det_file, "gt")
+        det_file = os.path.join(det_file, "gt.txt") #mask_rcnn, ssd512, yolo3
 
-        return pd.read_csv(det_file, names=['frame', 'pass', 'left', 'top', 'width', 'height', 'conf', 'pass1', 'pass2', 'pass3'])
+        return pd.read_csv(det_file, names=['frame', 'id', 'left', 'top', 'width', 'height', 'conf', 'pass1', 'pass2', 'pass3'])
 
     def _select_frame(self, uuid, df):
         image_paths = self.tracks[uuid]["frames"]
@@ -157,6 +159,7 @@ class Movement:
         for i in range(1, len(_sm_3dpts)):
             frame_id = initial_frame + i
             df_frame = df[df.frame == frame_id]
+            car_id = df_frame[['id']].to_numpy()[:,0]                    
             cars_coord = df_frame[['3dx', '3dy']].to_numpy()
             dist_from_maincar = []
             candidates = []
@@ -179,11 +182,11 @@ class Movement:
                 b = dist[second_index]
                 c = np.linalg.norm(_sm_3dpts[min_index] - _sm_3dpts[second_index])
                 s = (a + b + c) / 2
-                dist_from_path = np.sqrt(s*(s-a)*(s-b)*(s-c)) * 2 / c
+                dist_from_path = np.sqrt(np.abs(s*(s-a)*(s-b)*(s-c))) * 2 / c
                 if dist_from_path < 1:
                     d = np.linalg.norm(car_coord - _sm_3dpts[i])
                     if d < 3: continue
-                    candidates.append(j)
+                    candidates.append(car_id[j])
                     dist_from_maincar.append(d)
             if len(candidates) < 1: continue
             
@@ -194,7 +197,7 @@ class Movement:
             new_candidates = []
             new_dist = []
             for d, candidate in zip(dist_from_maincar, candidates):
-                candi_coord = cars_coord[candidate]
+                candi_coord = df_frame[df_frame.id == candidate][['3dx', '3dy']].to_numpy()[0]
                 y = l*(candi_coord[0]-_sm_3dpts[i,0]) + _sm_3dpts[i,1]
                 if vec[vec_i, 1] > 0 and y > candi_coord[1]:
                     new_candidates.append(candidate)
@@ -205,23 +208,22 @@ class Movement:
             if len(new_candidates) < 1: continue
             candi_index = new_dist.index(min(new_dist))
             candidate = new_candidates[candi_index]
-            candi_coord = cars_coord[candidate]
-            bbox = df_frame[['left', 'top', 'width', 'height']].to_numpy()[candidate]
+            candi_coord = df_frame[df_frame.id == candidate][['3dx', '3dy']].to_numpy()[0]
+            bbox = df_frame[df_frame.id == candidate][['left', 'top', 'width', 'height']].to_numpy()[0]
 
             bboxes.append(bbox)
             candi_coords.append(candi_coord)
             frame_ids.append(frame_id)
 
-        car_id = 0
+        if len(bboxes) == 0:
+            return {'rear': 0, 'frame_num': [0], 'rear_bbox': [[0, 0, 0, 0]]}
+
         cars = dict()
-        for i in range(len(bboxes)-1):
-            if i == 0:
-                cars.update({car_id: []})
-            if np.linalg.norm(candi_coords[i] - candi_coords[i+1]) > 3:
-                car_id += 1
-            if car_id not in cars:
-                cars.update({car_id: []})
-            cars[car_id].append([frame_ids[i], bboxes[i]])
+        for i, candidate in enumerate(new_candidates):
+            if candidate in cars:
+                cars[candidate].append([frame_ids[i], bboxes[i]])
+            else:
+                cars[candidate] = [[frame_ids[i], bboxes[i]]]
 
         max_value = -1
         for key in cars:
@@ -229,15 +231,10 @@ class Movement:
                 max_value = len(cars[key])
                 max_key = key
 
-        if len(bboxes) == 0 or max_value == -1:
-            return {'rear': 0, 'frame_num': 0, 'rear_bbox': [0, 0, 0, 0]}
+        if max_value == -1:
+            return {'rear': 0, 'frame_num': [0], 'rear_bbox': [[0, 0, 0, 0]]}
+        return {'rear': 1, 'frame_num': [int(each_frame[0]) for each_frame in cars[max_key]], 'rear_bbox': [each_frame[1].tolist() for each_frame in cars[max_key]]}
 
-        vec_2d = mov._get_vectors(mov._smoother(_2dpts))
-        if vec_2d.mean(axis=0)[1] > 0:
-            return {'rear': 1, 'frame_num': int(cars[max_key][0][0]), 'rear_bbox': cars[max_key][0][1].tolist()}
-        else:
-            return {'rear': 1, 'frame_num': int(cars[max_key][-1][0]), 'rear_bbox': cars[max_key][-1][1].tolist()}
-    
     def rear_car(self, uuid):
         df = self._read_det(uuid)
         df = self._select_frame(uuid, df)
@@ -249,13 +246,44 @@ class Movement:
         ret = self._get_rear_car(df, _sm_3dpts, vec, _2dpts)
 
         frame_file = self.tracks[uuid]["frames"][0]
-        frame_file = os.path.dirname(frame_file)
-        frame_file = os.path.join(frame_file, f"{str(ret['frame_num']).zfill(6)}.jpg")
+        im = cv2.imread(frame_file)
+        y = im.shape[0]
+        if len(ret['rear_bbox']) == 1:
+            frame_file = os.path.dirname(frame_file)
+            frame_file = os.path.join(frame_file, f"{str(ret['frame_num'][0]).zfill(6)}.jpg")
 
-        ret.pop('frame_num', None)
-        ret["rear_frame"] = frame_file
-        # ret["rear_bbox"] = ret["rear_bbox"].tolist()
-        return ret
+            ret.pop('frame_num', None)
+            ret["rear_frame"] = frame_file
+            ret['rear_bbox'] = ret['rear_bbox'][0]
+            return ret
+        else:
+            bbox_size = []
+            for bbox in ret['rear_bbox']:
+                bbox_size.append(bbox[2] * bbox[3])
+            bbox_sort = [bbox for _, bbox in sorted(zip(bbox_size, ret['rear_bbox']), reverse=True)]
+            frame_sort = [frame_id for _, frame_id in sorted(zip(bbox_size, ret['frame_num']), reverse=True)]
+            flag = False
+            for frame_id, bbox in zip(frame_sort, bbox_sort):
+                y_bbox = bbox[1] + bbox[3]
+                if y_bbox < y - 10:
+                    frame_file = os.path.dirname(frame_file)
+                    frame_file = os.path.join(frame_file, f"{str(frame_id).zfill(6)}.jpg")
+
+                    ret.pop('frame_num', None)
+                    ret["rear_frame"] = frame_file
+                    ret["rear_bbox"] = bbox
+                    return ret
+            frame_file = os.path.dirname(frame_file)
+            frame_file = os.path.join(frame_file, f"{str(frame_sort[0]).zfill(6)}.jpg")
+
+            ret.pop('frame_num', None)
+            ret["rear_frame"] = frame_file
+            ret["rear_bbox"] = bbox_sort[0]
+            return ret
+
+
+
+
 
     def _get_front_car(self, df, _sm_3dpts, vec, _2dpts):
         bboxes = []
@@ -267,6 +295,7 @@ class Movement:
         for i in range(len(_sm_3dpts)):
             frame_id = initial_frame + i
             df_frame = df[df.frame == frame_id]
+            car_id = df_frame[['id']].to_numpy()[:,0]
             cars_coord = df_frame[['3dx', '3dy']].to_numpy()
             dist_from_maincar = []
             candidates = []
@@ -289,11 +318,11 @@ class Movement:
                 b = dist[second_index]
                 c = np.linalg.norm(_sm_3dpts[i + min_index] - _sm_3dpts[i + second_index])
                 s = (a + b + c) / 2
-                dist_from_path = np.sqrt(s*(s-a)*(s-b)*(s-c)) * 2 / c
+                dist_from_path = np.sqrt(np.abs(s*(s-a)*(s-b)*(s-c))) * 2 / c
                 if dist_from_path < 1:
                     d = np.linalg.norm(car_coord - _sm_3dpts[i])
                     if d < 3: continue
-                    candidates.append(j)
+                    candidates.append(car_id[j])
                     dist_from_maincar.append(d)
             if len(candidates) < 1: continue
             
@@ -304,7 +333,7 @@ class Movement:
             new_candidates = []
             new_dist = []
             for d, candidate in zip(dist_from_maincar, candidates):
-                candi_coord = cars_coord[candidate]
+                candi_coord = df_frame[df_frame.id == candidate][['3dx', '3dy']].to_numpy()[0]
                 y = l*(candi_coord[0]-_sm_3dpts[i,0]) + _sm_3dpts[i,1]
                 if vec[vec_i, 1] > 0 and y < candi_coord[1]:
                     new_candidates.append(candidate)
@@ -315,23 +344,22 @@ class Movement:
             if len(new_candidates) < 1: continue
             candi_index = new_dist.index(min(new_dist))
             candidate = new_candidates[candi_index]
-            candi_coord = cars_coord[candidate]
-            bbox = df_frame[['left', 'top', 'width', 'height']].to_numpy()[candidate]
+            candi_coord = df_frame[df_frame.id == candidate][['3dx', '3dy']].to_numpy()[0]
+            bbox = df_frame[df_frame.id == candidate][['left', 'top', 'width', 'height']].to_numpy()[0]
 
             bboxes.append(bbox)
             candi_coords.append(candi_coord)
             frame_ids.append(frame_id)
 
-        car_id = 0
+        if len(bboxes) == 0:
+            return {'front': 0, 'frame_num': [0], 'front_bbox': [[0, 0, 0, 0]]}
+
         cars = dict()
-        for i in range(len(bboxes)-1):
-            if i == 0:
-                cars.update({car_id: []})
-            if np.linalg.norm(candi_coords[i] - candi_coords[i+1]) > 3:
-                car_id += 1
-            if car_id not in cars:
-                cars.update({car_id: []})
-            cars[car_id].append([frame_ids[i], bboxes[i]])
+        for i, candidate in enumerate(new_candidates):
+            if candidate in cars:
+                cars[candidate].append([frame_ids[i], bboxes[i]])
+            else:
+                cars[candidate] = [[frame_ids[i], bboxes[i]]]
 
         max_value = -1
         for key in cars:
@@ -339,14 +367,9 @@ class Movement:
                 max_value = len(cars[key])
                 max_key = key
 
-        if len(bboxes) == 0 or max_value == -1:
-            return {'front': 0, 'frame_num': 0, 'front_bbox': [0, 0, 0, 0]}
-
-        vec_2d = mov._get_vectors(mov._smoother(_2dpts))
-        if vec_2d.mean(axis=0)[1] > 0:
-            return {'front': 1, 'frame_num': int(cars[max_key][0][0]), 'front_bbox': cars[max_key][0][1].tolist()}
-        else:
-            return {'front': 1, 'frame_num': int(cars[max_key][-1][0]), 'front_bbox': cars[max_key][-1][1].tolist()}
+        if max_value == -1:
+            return {'front': 0, 'frame_num': [0], 'front_bbox': [[0, 0, 0, 0]]}
+        return {'front': 1, 'frame_num': [int(each_frame[0]) for each_frame in cars[max_key]], 'front_bbox': [each_frame[1].tolist() for each_frame in cars[max_key]]}
 
     def front_car(self, uuid):
         df = self._read_det(uuid)
@@ -359,13 +382,40 @@ class Movement:
         ret = self._get_front_car(df, _sm_3dpts, vec, _2dpts)
 
         frame_file = self.tracks[uuid]["frames"][0]
-        frame_file = os.path.dirname(frame_file)
-        frame_file = os.path.join(frame_file, f"{str(ret['frame_num']).zfill(6)}.jpg")
+        im = cv2.imread(frame_file)
+        y = im.shape[0]
+        if len(ret['front_bbox']) == 1:
+            frame_file = os.path.dirname(frame_file)
+            frame_file = os.path.join(frame_file, f"{str(ret['frame_num'][0]).zfill(6)}.jpg")
 
-        ret.pop('frame_num', None)
-        ret["front_frame"] = frame_file
-        # ret["front_bbox"] = ret["front_bbox"].tolist()
-        return ret
+            ret.pop('frame_num', None)
+            ret["front_frame"] = frame_file
+            ret['front_bbox'] = ret['front_bbox'][0]
+            return ret
+        else:
+            bbox_size = []
+            for bbox in ret['front_bbox']:
+                bbox_size.append(bbox[2] * bbox[3])
+            bbox_sort = [bbox for _, bbox in sorted(zip(bbox_size, ret['front_bbox']), reverse=True)]
+            frame_sort = [frame_id for _, frame_id in sorted(zip(bbox_size, ret['frame_num']), reverse=True)]
+            flag = False
+            for frame_id, bbox in zip(frame_sort, bbox_sort):
+                y_bbox = bbox[1] + bbox[3]
+                if y_bbox < y - 10:
+                    frame_file = os.path.dirname(frame_file)
+                    frame_file = os.path.join(frame_file, f"{str(frame_id).zfill(6)}.jpg")
+
+                    ret.pop('frame_num', None)
+                    ret["front_frame"] = frame_file
+                    ret["front_bbox"] = bbox
+                    return ret
+            frame_file = os.path.dirname(frame_file)
+            frame_file = os.path.join(frame_file, f"{str(frame_sort[0]).zfill(6)}.jpg")
+
+            ret.pop('frame_num', None)
+            ret["front_frame"] = frame_file
+            ret["front_bbox"] = bbox_sort[0]
+            return ret
 
 
 if __name__ == '__main__':
@@ -386,6 +436,7 @@ if __name__ == '__main__':
     # uuids[0] = 'a9d0b0b6-038a-41b0-b682-b24b87042a6a'
 
     # right left lane
+    """
     # out_file = 'data/train-2d-dir.json'
     out_file = 'data/test-2d-dir.json'
     out = {}
@@ -403,7 +454,7 @@ if __name__ == '__main__':
             out[uuid] = "none"
     
     json.dump(out, open(out_file, 'w'), indent=4)
-
+    """
 
     # front rear car
     """
@@ -412,7 +463,7 @@ if __name__ == '__main__':
     out_file = 'data/test-vicinity.json'
     out = {}
     for i, uuid in enumerate(uuids):
-        print(i)
+        print(i, uuid)
         if len(tracks[uuid]["frames"]) < 2:
             subout = {}
             subout.update({'rear': 0, 'rear_frame': '.', 'rear_bbox': [0, 0, 0, 0]})
